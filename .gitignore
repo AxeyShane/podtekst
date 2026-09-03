@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Secrets
+.env
+
+# Generated data (large, regenerable — don't commit)
+data-pipeline/*.jsonl
+!data-pipeline/seeds_example.txt
+
+# Model artifacts (large binaries — don't commit to git)
+model/*.task
+model/*.tflite
+model/checkpoints/
+
+# OS
+.DS_Store
+Thumbs.db

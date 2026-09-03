@@ -1,0 +1,33 @@
+NOTICE
+
+This project, Podtekst, incorporates code from the following open source
+projects.
+
+--------------------------------------------------------------------------
+Google AI Edge Gallery
+--------------------------------------------------------------------------
+Source: https://github.com/google-ai-edge/gallery
+License: Apache License 2.0
+
+Portions of this project's on-device model loading and LiteRT inference
+code are derived from Google AI Edge Gallery. Copyright and license notices
+from the original source files are preserved in the corresponding files
+within this repository. Modifications made to these files are noted at the
+top of each modified file.
+
+--------------------------------------------------------------------------
+FlorisBoard
+--------------------------------------------------------------------------
+Source: https://github.com/florisboard/florisboard
+License: MIT License
+
+This project's Android keyboard (IME) foundation is forked from FlorisBoard.
+The original FlorisBoard LICENSE is included in this repository at
+keyboard/LICENSE-FlorisBoard.md (or equivalent path once the fork is
+imported). Attribution is preserved per the MIT license terms.
+
+--------------------------------------------------------------------------
+
+This NOTICE file is provided for informational purposes and does not modify
+the license terms of the above projects. See each project's original
+license for the authoritative terms.

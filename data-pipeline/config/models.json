@@ -1,0 +1,29 @@
+{
+  "_comment": "Stage A generator roster, called via OpenRouter. Edit slugs/roles here as OpenRouter's catalog shifts — the script reads this file, no code changes needed. Verify current slugs against https://openrouter.ai/models before running at volume.",
+  "stage_a_generators": [
+    {
+      "slug": "qwen/qwen3.5-plus",
+      "role": "primary multilingual generator",
+      "notes": "Strong documented Russian coverage, low cost"
+    },
+    {
+      "slug": "mistralai/mistral-large-3",
+      "role": "diversity generator",
+      "notes": "European lab, different training lineage than Qwen/DeepSeek, strong multilingual benchmarks"
+    },
+    {
+      "slug": "google/gemini-2.5-flash",
+      "role": "quality generator",
+      "notes": "Independently benchmarked as a translation-quality leader among commercial engines; swap in a newer Gemini Flash tier as it becomes available"
+    },
+    {
+      "slug": "baban/QwenTranslate_English_Russian",
+      "role": "literal-translation anchor",
+      "notes": "Small model fine-tuned specifically for EN<->RU translation; grounds the ensemble in translation accuracy"
+    }
+  ],
+  "stage_c_coverage_model": {
+    "slug": "minimax/minimax-m3",
+    "notes": "1M context, cheap — used periodically to scan the accumulating dataset for redundancy/category gaps. Swap to a larger-context model (e.g. x-ai/grok-4-fast-reasoning) if the dataset outgrows this."
+  }
+}
