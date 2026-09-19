@@ -26,8 +26,8 @@ where the project currently sits.
 
 - [FlorisBoard](https://github.com/florisboard/florisboard) (MIT) — Android
   keyboard base
-- [Google AI Edge Gallery](https://github.com/google-ai-edge/gallery)
-  (Apache-2.0) — on-device LiteRT model loading/inference
+- [LiteRT-LM](https://github.com/google-ai-edge/LiteRT-LM) (Apache-2.0) —
+  on-device LLM inference runtime (Kotlin API, standalone Gradle dependency)
 
 See [`NOTICE`](NOTICE) for full attribution.
 
