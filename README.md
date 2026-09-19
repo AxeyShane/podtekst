@@ -11,16 +11,9 @@ just the words.
 
 ## Status
 
-Early stage — see [`docs/EXECUTION_PLAN.md`](docs/EXECUTION_PLAN.md) for
-where the project currently sits.
-
-## Docs
-
-- [`docs/PRODUCT.md`](docs/PRODUCT.md) — what this is, who it's for, scope,
-  success metrics, known limitations
-- [`docs/DESIGN.md`](docs/DESIGN.md) — architecture, data pipeline, model
-  approach, code reuse
-- [`docs/EXECUTION_PLAN.md`](docs/EXECUTION_PLAN.md) — phased build plan
+Early stage. Detailed design/product/execution docs are kept out of this
+public repo (tracked locally only) — the code and pipeline tooling here are
+the public-facing part of the project.
 
 ## Built on
 
