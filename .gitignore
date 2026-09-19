@@ -17,8 +17,6 @@ model/*.tflite
 model/checkpoints/
 
 # Local-only third-party training media — never committed or distributed.
-
-
 data-pipeline/raw-media/
 *.mkv
 *.mp4
