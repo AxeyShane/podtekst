@@ -1,0 +1,950 @@
+Ты не забыл купить хлеба?
+Борис Викторович, перезвоните мне после трёх.
+Мам, ты не знаешь, куда я дела пароль от Wi‑Fi?
+Доктор, вы уверены, что мне не надо делать операцию?
+Продавец, покажите, пожалуйста, ту модель.
+Проходите, садитесь, я сейчас освобожусь.
+Молодой человек, вы что‑то потеряли.
+Слушай, ну ты сам‑то в это веришь?
+Наталья Петровна, перешлите мне файл, будьте добры.
+Дорогой, свари мне кофе, а я пока доделаю отчёт.
+Вы не могли бы говорить тише, тут ребёнок спит.
+Привет, ты не мог бы подвинуться, я сяду рядом.
+Вы не подскажете, который час, а то я часы дома забыл.
+Слушай, ты сегодня просто огонь, давай встретимся вечером.
+Здравствуйте, я записан к врачу на 15:00, меня зовут Иванов.
+Мама, ты не видела мои ключи? Я опаздываю на работу.
+Уважаемый клиент, ваш заказ готов, подойдите, пожалуйста, на выдачу.
+Братан, выручай, займи тысячу до зарплаты.
+Извините, вы случайно не знаете, где здесь ближайшая аптека?
+Дорогая, как прошло собеседование? Ты очень волновалась.
+Господин президент, разрешите задать вопрос на пресс-конференции.
+Детка, ты сегодня такая красивая, я просто таю.
+Не могли бы вы передать меню? Нам нужно сделать заказ.
+Подскажите, пожалуйста, сколько стоит проезд на автобусе?
+Ты сегодня в двенадцать сможешь меня встретить?
+Не могли бы вы подписать этот договор до завтрашнего вечера?
+Слушай, принеси‑ка мне тот файл, а то я сам не дойду.
+Доктор, вы уже посмотрели результаты моих анализов?
+Приходи ко мне вечером, я пиццу закажу.
+Будьте добры, передайте сдачу мелочью.
+Мама, ты не знаешь, где мои ключи?
+Уважаемый клиент, ваш заказ будет готов через двадцать минут.
+Сделай мне кофе, пожалуйста, только без сахара.
+Простите, вы не подскажете, где здесь ближайшая аптека?
+Ты опять забыл выключить свет на кухне.
+Вы не подскажете, который час?
+Передай соль, пожалуйста.
+Здравствуйте, доктор, у меня болит спина.
+Слушай, ты опять забыл купить хлеб?
+Будьте добры, покажите это платье в витрине.
+Ты сегодня вечером свободен? Может, в кино сходим?
+Уважаемые пассажиры, пожалуйста, приготовьте билеты.
+Спасибо, пап, что помог с ремонтом.
+Простите, вы не видели здесь мою сумку?
+Эй, приятель, помоги двигатель толкнуть.
+Господин директор, разрешите обратиться с вопросом.
+Ну ты и шутник, Васька — вечно меня разыгрываешь.
+Будьте добры, подскажите, как пройти к метро?
+Глянь, что он мне написал!
+Вам что-нибудь ещё?
+Принеси мне отчёт, пожалуйста.
+На что вы жалуетесь?
+Вы очень похожи на свою маму.
+Вы мне нравитесь, но я не знаю, как к вам обращаться.
+Заткнись, я разговариваю по телефону!
+Эй, ты, подвинься!
+Вы не могли бы переслать мне те файлы?
+Сядь и доешь кашу.
+Ну что ты опять плачешь?
+Вы не подскажете, как пройти к вокзалу?
+Ты сегодня придёшь на ужин?
+Передайте, пожалуйста, соль.
+Подойди сюда, быстро.
+Присаживайтесь, доктор.
+Слушай, ты меня бесишь.
+Не могли бы вы помочь мне с этим документом?
+Принеси мне чай, пожалуйста.
+Здравствуйте, вы меня помните?
+Чего тебе?
+Будьте добры, передайте заказ.
+Ты не видел мои ключи?
+Вы не подскажете, который час? — Скажи, сколько времени?
+Передайте, пожалуйста, соль. — Дай-ка соль.
+Извините, вы не могли бы повторить? — Ась? Повтори.
+Спасибо за вашу помощь, доктор. — Спасибо, что выручил.
+Вы бы не хотели чаю? — Будешь чай?
+Обращайтесь ко мне на "ты", мы же коллеги. — Мы же свои, без чинов.
+Ваше предложение рассмотрено, ждите ответа. — Окей, я подумаю.
+Простите, я не нарочно. — Ой, сорян, случайно.
+Вы не будете так любезны подвинуться? — Подвинься, братан.
+Я ценю ваше терпение, это было непросто. — Ну ты и зануда, конечно.
+Могу я попросить вас о небольшой услуге? — Сделай одолжение.
+Could you please pass the salt?
+Excuse me, do you have the time?
+You need to finish this report by five.
+I'm sorry, I didn't catch your name.
+Hey, you coming to the party tonight?
+Would you mind holding the door?
+You're my best friend, you know that?
+I would appreciate it if you could review my proposal.
+Can you grab me a beer from the fridge?
+Doctor, could you take a look at this?
+You're grounded, young man.
+I regret to inform you that your application has been rejected.
+Could you please pass me the salt?
+I need you to finish that report by five o'clock.
+You're really making me angry with that attitude.
+Would you mind stepping aside so I can get through?
+Tell me what you want for dinner.
+You have no idea what you're talking about.
+Please take a seat, the doctor will see you shortly.
+Get out of my way.
+I love you, but you're driving me crazy.
+Could you possibly help me with this heavy bag?
+You're the best thing that ever happened to me.
+Excuse me, sir, you dropped your wallet.
+Hey, buddy, can you grab that for me?
+Would you be so kind as to sign here?
+You look nice today.
+I need you to finish this report by noon.
+Get out of my way!
+Tell me what you want.
+Please have a seat.
+You're late again.
+Would you like some tea?
+Don't even think about it.
+Come here and help me with this.
+Could you please step aside, I need to reach the shelf.
+You always know exactly what to say.
+I need you to approve this report by end of day.
+Don't be late again, got it?
+It would be my pleasure to assist you with that.
+Tell me the truth, did you do it?
+Hey, pass me the remote.
+We appreciate your continued cooperation.
+You're the only one I trust with this.
+Would you be so kind as to hold the door?
+How's it going, buddy?
+I would appreciate it if you could review my report by Friday.
+You're not gonna believe what happened at the party last night.
+Excuse me, sir, do you have the time?
+Don't forget to pick up milk on your way home.
+Would you mind holding the door for me?
+This is your final warning — get your act together.
+May I ask who's calling?
+Let's grab a beer after work, yeah?
+I'm so sorry to bother you, but could you help me with this bag?
+You really think that's a good idea?
+You're not going to believe what your brother did last night.
+I'm sorry, sir, but I need to see your ID before I can let you in.
+Hey, you forgot your wallet on the counter.
+Doctor, could you take a look at this test result when you have a moment?
+Don't you dare speak to me like that ever again.
+You always know exactly what to say to make me feel better.
+Excuse me, are you lost? Can I help you find something?
+You need to finish that report by noon, no exceptions.
+I love you, Mom, but you have to stop worrying about me.
+Thanks for the drink, man – you're a lifesaver.
+Could you please take a look at this report when you have a moment?
+You think that’s funny, do you?
+Ну конечно, как раз когда я опаздываю, автобус решл сломаться.
+Как мило, что ты пришёл вовремя — всго на час позже.
+Прекрасный план, прос то шедевр продуманности.
+Очевидно, что это была блестящая идя — доверить это ему.
+Я прос то обожаю, когда мой инернет отключается во время важной встречи.
+Спасибо, что предупредил заранее — прямо за минуту.
+Да, конечно, я очен рад снова мыть посуду после вечеринки.
+Удивительно, как у тебя получается всё испортить одним движением.
+Ну да, кто бы сомневался, что именно сегодя будет ливен.
+Великолепный подарок — книгу, которую я уже прочитал.
+Как заботливо с твоей стороны забыть мой ден рождения.
+Я прос то в восторге от твоих оправданий.
+Ну конечно, всё по плану — как всегда, только не так, как надо.
+О, спасибо, что предупредил заранее, я просто обожаю сюрпризы.
+Какой приятный сюрприз — дождь в самый разгар пикника, просто сказка.
+Невероятно удобно, что ты опоздал на целый час, я как раз хотел подождать.
+Превосходная работа — сломать единственный работающий принтер за пять минут до дедлайна.
+Да, конечно, это именно то, что я всегда мечтал получить в подарок.
+Замечательно, теперь у нас есть лишняя проблема — ты просто гений.
+И почему это я не удивлён, что ты «случайно» забыл ключи?
+О, какой удачный день: сначала сломалась машина, потом потерялся кошелёк.
+Браво, ты снова доказал, что обещания существуют только для того, чтобы их нарушать.
+Как же я люблю эти моменты, когда всё идёт наперекосяк — прямо песня.
+Спасибо за «помощь» — без тебя я бы точно не справился сделать всё в два раза дольше.
+Какой у тебя талант — испортить даже самый простой проект.
+О, спасибо, что предупредил за пять минут до встречи.
+Замечательно, теперь у нас есть третий экземпляр одного и того же документа.
+Ну да, конечно, я и не сомневался, что ты снова всё забудешь.
+Отличная погода для прогулки — ливень и ветер в лицо.
+Какая неожиданность — интернет снова пропал в самый важный момент.
+Ты, как всегда, вовремя — ровно в полночь.
+Прекрасная работа, теперь придётся переделывать всё с нуля.
+Какой полезный совет — опоздать на полчаса и ничего не успеть.
+Ну, конечно, лучшее решение — купить сломанный телефон.
+Чудесно, теперь у нас два левых ботинка от разных пар.
+Какой заботливый друг — пришёл, когда уже всё закончилось.
+Ну конечно, опять всё получилось просто идеально.
+Какой приятный сюрприз — дождь как раз когда я вышел без зонта.
+Обожаю ждать тебя по полчаса, это лучшее времяпрепровождение.
+Отлично, мой компьютер завис прямо перед сохранением.
+Ты, как всегда, вовремя — только через час.
+Ещё одна гениальная идея, которая закончилась провалом.
+Как же мне повезло, что у меня сегодня было так много свободного времени.
+Несомненно, этот план был самым продуманным из всех.
+Просто чудо, что ты всё-таки явился — я уже начал волноваться.
+Восхитительно, теперь придётся переделывать всё заново.
+Какой удачный день — с утра до вечера сплошные приятные сюрпризы.
+Ты, безусловно, мастер находить самые неудобные моменты для звонка.
+Ну, конечно, именно сегодня, когда я без зонта, пошёл дождь.
+Какой удачный день: опять сломалась стиральная машина.
+Замечательно, автобус уехал прямо перед моим носом, как всегда.
+Ты, как обычно, опоздал всего на час — просто идеально.
+О, отлично, снова этот «заботливый» коллега принёс мне работу за пять минут до конца дня.
+Какая неожиданность: он пообещал и не сделал — просто шок.
+Обожаю, когда мой планшет разряжается в самый ответственный момент.
+Молодец, ты опять пролил кофе на мои документы, спасибо огромное.
+Ну и везуха: я купил лотерейный билет, и, конечно, ни копейки не выиграл.
+Как же мне повезло, что интернет отключили именно во время онлайн-собеседования.
+Браво, твоя «помощь» только всё испортила, как и в прошлый раз.
+Восхитительно, у меня снова закончился кофе, когда я только сел работать.
+Ну, конечно, именно этого мне и не хватало для полного счастья.
+Ты, как всегда, гений — испортил всё за пять секунд.
+О, прекрасно, опять этот «надёжный» человек подвёл в последний момент.
+Да, отличная идея — ждать под дождём два часа, гениально.
+Какой сюрприз, что твой план провалился — кто бы мог подумать.
+У тебя просто талант выбирать самый неудачный момент для таких новостей.
+Конечно, деталь сломалась сразу после гарантии — классика.
+Ну спасибо, что предупредил заранее, хоть за час до встречи.
+Твой «надёжный» друг снова забыл о своих обещаниях, молодец.
+О да, это был лучший день в моей жизни — если забыть о катастрофе.
+Какой удачный поворот — теперь переделывать всё с нуля.
+Ты, безусловно, мастер доводить дела до абсурда, респект.
+Ну, просто отличный день: сперва проспал, потом потерял телефон.
+Обожаю, когда автобус уезжает прямо перед носом — спасибо за заряд энергии!
+Ты такой надёжный, как швейцарские часы, только сломанные.
+Как удачно, что дождь начался именно в тот момент, когда я снял бельё.
+Гениально: ты потратил час, чтобы объяснить то, что можно было сказать за минуту.
+Прямо шедевр планирования — пригласить гостей, а забыть купить хлеб.
+Ты, видимо, решил меня осчастливить этим «новым рецептом», который пахнет гарью.
+Какая неожиданность — интернет снова пропал в самый ответственный момент!
+Ты сегодня просто кладезь полезных советов, особенно про то, как заварить цемент в чайнике.
+О да, конечно, я обожаю, когда мои планы рушатся из-за твоей «помощи».
+Спасибо, что напомнил про мой день рождения — через три дня после того, как он прошёл.
+Ты, бесспорно, настоящий гений, если считаешь, что эта конструкция продержится больше часа.
+О, как я люблю стоять в этих пробках каждое утро!
+Ну конечно, опять забыл мой день рождения. Ты такой внимательный.
+Какой приятный сюрприз — снова идёт дождь, когда я только что высушил волосы.
+Да, конечно, я поверю, что ты позвонишь. Как же я жду этого звонка!
+Отлично, мой телефон разрядился именно тогда, когда он был нужен. Просто замечательно.
+О, ты снова опоздал на полчаса. Твоя пунктуальность поражает.
+Ну что ж, я очень рад, что мой автобус уехал прямо перед моим носом. Это мой любимый момент дня.
+Как замечательно, что у меня закончился кофе в понедельник утром. Лучшее начало недели.
+Спасибо, что разбил мою любимую кружку. Ты просто мастер аккуратности.
+О, конечно, «всё будет готово завтра». Я слышал это уже сто раз.
+Какой же ты гений — оставить ключи в запертой машине. Продолжай в том же духе.
+Прекрасно, я поскользнулся на ровном месте и уронил обед. Так и хотелось.
+Ну, конечно, ты опять пришёл вовремя — так и ждал, пока я всё переделаю.
+Как же я рад, что ты сломал мой любимый чайник — давно мечтал о новом ведре.
+Замечательно, что ты забыл купить хлеб — я как раз хотел устроить день жестянки.
+Очень предусмотрительно с твоей стороны — поставить будильник на завтра после обеда, когда ты уже на работе.
+Какой полезный совет — «просто не волнуйся» — теперь всё сразу наладится, спасибо.
+Ты, конечно, лучший друг — сначала согласился помочь, а потом исчез на неделю.
+Великолепно, что ты решил проверить, сколько воды выдержит мой новый паркет.
+О, какая удача — дождь начался ровно в тот момент, когда я повесил бельё сушиться.
+Искренне спасибо за то, что ты починил мой компьютер — теперь он даже не включается, просто превосходно.
+I really appreciate it when you promise to call and then vanish for three days.
+Oh, sure, because getting stuck in traffic for two hours is exactly how I wanted to spend my afternoon.
+What a brilliant idea to leave the milk out on the counter all day.
+I love how you always manage to show up just as the movie ends.
+Thanks for pointing out the obvious, I never would have figured that out without you.
+Nothing beats the thrill of finding a parking ticket on a holiday when the street cleaning signs were hidden.
+You are such a genius for scheduling the meeting right when I have a doctor’s appointment.
+Of course, my Wi-Fi would go down the second I finally have time to relax.
+I can always count on you to forget something important—keeps life interesting.
+This is the perfect moment to tell me your car broke down, with me already late for work.
+Sure, let me just drop everything I'm doing to fix your mistake for the fifth time.
+You're so thoughtful—leaving the empty milk carton in the fridge really makes my day.
+Oh, fantastic, my alarm didn't go off again this morning.
+I just love it when the Wi-Fi cuts out right in the middle of a video call.
+Sure, a flat tire on the highway is exactly how I wanted to start my day.
+You really outdid yourself with that “helpful” advice.
+Oh, this is perfect—another meeting that could have been an email.
+I’m so thrilled you showed up an hour late with no explanation.
+What a brilliant move, leaving the milk out on the counter all night.
+Yes, because getting a parking ticket is my favorite way to end the week.
+I absolutely adore how you “forgot” to mention the project deadline.
+Wow, thanks for “fixing” my computer—now it’s even worse.
+Nothing says “fun” like spending the afternoon in a doctor’s waiting room.
+Oh, I’m so glad you decided to point out my mistake for the fifth time.
+I absolutely love it when people tell me to hurry up while I’m already doing the task.
+Wow, another canceled meeting—my schedule was way too empty.
+Oh sure, blame the intern for the server crash that happened three hours after they left.
+This rain is exactly what I needed for my outdoor wedding photos.
+You’re really great at arriving exactly when you’re needed—an hour late and with the wrong file.
+Perfect timing, my car just broke down in the middle of nowhere with no cell service.
+I just adore when my WiFi disconnects right before a deadline.
+Thanks for that brilliant idea—now we have to redo a week of work.
+Your reminder to bring the snacks was super helpful, seeing as we’re already here without them.
+Of course the one day I forget my umbrella is the day it pours all morning.
+This is such a fantastic way to start my Monday—a flat tire and a missed alarm.
+I really appreciate how you always finish your chores just before I do them myself.
+Oh, fantastic, the train’s delayed again—just what I needed to start my day.
+I love it when my internet cuts out right in the middle of an important call.
+You’re so reliable, showing up an hour late with no warning whatsoever.
+Well, this is the perfect ending to a flawless week.
+Sure, because losing my keys for the third time today is exactly how I planned to spend my evening.
+Thanks for pointing out that I’m actually right—I was starting to enjoy being wrong.
+Wow, what a brilliant idea to leave the project until the last minute; that never backfires.
+I’m so thrilled you forgot my birthday again—it’s the thought that counts, after all.
+Nothing says “great customer service” like being put on hold for forty-five minutes.
+Look at you, the epitome of grace, spilling coffee all over my clean floor.
+I really appreciate that you fixed my chair, even though now it wobbles more than before.
+What a masterpiece of engineering, a toaster that burns everything on the lowest setting.
+Perfect timing – the bus drives away just as I reach the stop.
+Thanks for the heads-up about the deadline change – I only had to redo the entire report.
+Oh, I love how you left the milk out all night – now I get to buy new yogurt.
+Brilliant move, locking yourself out of the car in this heat.
+Great, another meeting that could have been an email – my favorite.
+Of course the printer jams on the last page of a 200-page document.
+I'm so glad you decided to 'help' by reorganizing my desk – now I can't find anything.
+Wow, that was incredibly helpful – you deleted the only backup file.
+Lovely weather for a picnic – perfect if you enjoy being drenched.
+I really appreciate you saving the last slice of cake for me – and then eating it.
+Nice job forgetting my birthday again – consistency is key.
+Oh, don't apologize – I love it when you interrupt me mid-sentence.
+Well, this day just keeps getting better.
+Thanks for arriving exactly when I needed you.
+Perfect weather for a barbecue.
+Just what I always wanted, a new DIY project.
+I love spending extra time in the car.
+Fabulous, my computer chose the perfect moment to update.
+Oh wonderful, another scavenger hunt.
+Michelin star chef right here.
+What a fantastic start to the weekend.
+Great, more free time for myself – exactly what I needed.
+I appreciate how efficient my brain is today.
+Oh, perfect, another flat tire on the way to the interview.
+Sure, my alarm didn't go off again, because that's exactly what I needed.
+Just what I wanted, a dent in my new car.
+Wow, you really outdid yourself with that cold cup of coffee.
+Great, it's raining the one day I forgot my umbrella.
+Of course the printer breaks when I have a deadline.
+Lovely, the soup is cold again.
+Brilliant idea to lock my keys in the car.
+Fantastic, my phone battery died right in the middle of the call.
+As expected, the internet goes out during my exam.
+Wonderful, the movie sold out just as we arrived.
+Nice job, you managed to spill coffee on the only clean shirt.
+Fantastic, the wifi went out right when I needed to submit.
+I love how you always remember to take out the trash... eventually.
+Он всё время бьёт баклуши, вместо того чтобы работать.
+Не втирай мне очки, я знаю правду.
+На этом деле он собаку съел, можешь довериться.
+В новой команде он чувствует себя как рыба в воде.
+Заруби себе на носу: никогда не опаздывай на встречу.
+Вечно из него делают козла отпущения за чужие ошибки.
+Не надо тянуть кота за хвост, принимай решение.
+Он варится в собственном соку и ни с кем не советуется.
+Эта новость свалилась как снег на голову.
+Я чуть не попал впросак, но вовремя заметил подвох.
+До вокзала рукой подать, дойдём за пять минут.
+Ты опять витаешь в облаках, слушай внимательно.
+Он бил бакланов весь день, а к вечеру так и не закончил отчёт.
+Мой начальник любит втирать очки новичкам, обещая золотые горы.
+Заруби себе на носу: в этом деле без концентрации не обойтись.
+Его критика для неё как с гуся вода — она даже не расстроилась.
+Слушай, у тебя медведь на ухо наступил, не пытайся петь.
+После той ссоры я чувствовал себя не в своей тарелке целую неделю.
+Он попал в такой переплёт, что пришлось звать адвоката.
+Наш шеф в этом вопросе собаку съел, можно довериться.
+Хватит тянуть кота за хвост, принимай решение уже сегодня.
+Поездкой в командировку я убил двух зайцев: и отчёт сдал, и клиента встретил.
+Они сидели на кухне и чесали языки до самого утра.
+У неё язык без костей — расскажет любую сплетню, не подумав.
+У него ветер в голове.
+Она работает засучив рукава.
+Он попал пальцем в небо.
+У меня душа ушла в пятки.
+Этот проект висит на волоске.
+Он смотрит сквозь пальцы на нарушения.
+Она льёт крокодиловы слёзы.
+Он водит за нос начальство.
+У меня язык хорошо подвешен.
+Он наступил на любимую мозоль.
+Она держит камень за пазухой.
+Он просто вешает лапшу на уши, чтобы оправдаться.
+Не стоит валять дурака, пора браться за дело.
+Она села в лужу со своим хвастовством перед начальником.
+У него руки не из того места растут — всё роняет.
+Мы наконец-то нашли общий язык после долгого спора.
+Он смотрит сквозь пальцы на опоздания подчинённых.
+У неё язык без костей — болтает без умолку.
+Он делает из мухи слона, когда речь идёт о мелких ошибках.
+Я готов душу заложить за эту возможность.
+Ему медведь на ухо наступил — ни одной ноты не попал.
+Она вышла сухой из воды, хотя все ждали скандала.
+Он зарубил себе на носу этот урок на всю жизнь.
+У него семи пядей во лбу, но он всё равно опоздал на поезд.
+Она била баклуши всё лето, а теперь плачет, что не сдала экзамен.
+После той истории я буду держать язык за зубами — на всю жизнь научился.
+Он вечно гоняется за двумя зайцами, и ни одного не поймал.
+У нас с ней кошки на душе скребут, когда видим эту цену.
+Ты с лёгкой руки начальника получил эту должность, а не по заслугам.
+Не плачь, будет и на нашей улице праздник, но когда — неизвестно.
+Он сел в лужу перед всем коллективом, когда обещал десять миллионов.
+У неё язык без костей — болтает без остановки, хоть уши затыкай.
+Мы работали засучив рукава, а результат — кот наплакал.
+Ты мне лапшу на уши не вешай, я знаю, сколько это стоит на самом деле.
+Сердце кровью обливается, когда вижу, как они относятся к детям.
+Он опять водит меня за нос — говорит, что отдаст долг, а сам даже не собирается.
+Ты так старался всех удивить, а в итоге сел в лужу перед начальником.
+Хватит бить баклуши — займись наконец отчётом, сроки уже горят.
+Не делай из мухи слона, это просто небольшая заминка, а не катастрофа.
+Заруби себе на носу: в этом доме никто не трогает мамины цветы.
+Хватит тянуть кота за хвост, скажи уже прямо, что решил.
+Все думали, что его уволят после такого скандала, но он вышел сухим из воды.
+Не вешай нос — всё ещё можно исправить, если взять себя в руки.
+Я всю ночь ломал голову над этой задачей, но так и не нашёл решения.
+Ты опять считаешь ворон на совещании — тебя уже дважды спрашивали.
+Этого старого тёртого калача не проведёшь никакими обещаниями — он всё насквозь видит.
+Держи язык за зубами: если проболтаешься о сюрпризе, всё будет испорчено.
+Не стоит вешать нос из-за временных трудностей.
+Хватит бить баклуши, пора приниматься за дело.
+Ему всегда везёт, словно родился в рубашке.
+Не нужно быть семи пядей во лбу, чтобы понять это.
+Он в этом деле собаку съел, так что доверься ему.
+Всю жизнь тянул лямку на заводе, а теперь на пенсии.
+В этот раз он попал пальцем в небо, ответ оказался неверным.
+Не пытайся его обмануть, он стреляный воробей.
+Когда я увидел тучи, у меня душа в пятки ушла.
+У него семь пятниц на неделе, никогда не знаешь, что ждать.
+Не верь его слезам, это крокодиловы слёзы.
+Он целыми днями бьёт баклуши, вместо того чтобы искать работу.
+Не витай в облаках, слушай, что я говорю.
+Она вертится как белка в колесе, пытаясь всё успеть.
+Ты вечно делаешь из мухи слона, это всего лишь мелкая ошибка.
+Заруби себе на носу: никогда не опаздывай на собеседование.
+Зарплата у него кот наплакал, еле хватает на жизнь.
+Не пой, пожалуйста, тебе медведь на ухо наступил.
+На корпоративе я чувствовал себя не в своей тарелке.
+Он попал впросак, подписав тот договор без консультации.
+Я сбился с ног, обходя все магазины в поисках подарка.
+Он сел в лужу, когда пытался доказать свою правоту на собрании.
+Хватит тянуть кота за хвост, давай уже прямо скажи, в чём дело.
+Он весь день бьёт баклуши вместо работы.
+Не втирай мне очки, я всё знаю.
+Ты заварил эту кашу, тебе и расхлёбывать.
+Это известие свалилось на меня как снег на голову.
+У него денег кот наплакал.
+Он оказал мне медвежью услугу, согласившись помочь.
+На вечеринке я чувствовал себя не в своей тарелке.
+Если он не уймётся, я покажу ему кузькину мать.
+Его слова сбили меня с толку.
+На такие нарушения нельзя смотреть сквозь пальцы.
+Он тёртый калач, его не проведёшь.
+У него язык без костей, всё расскажет.
+Он ушёл по-английски, даже не попрощавшись.
+Начальник снова вешает лапшу на уши, обещая премию.
+У неё семь пятниц на неделе: сегодня одно, завтра другое.
+Попал как кур в ощип — пришлось неожиданно отвечать.
+Я ему толкую про важное, а он всё в ус не дует.
+Друг подложил мне свинью, хотя просил лишь о малом.
+Учитель считает, что мы ловим блох, а не изучаем систему.
+Она села на любимого конька и не замолкала час.
+Всю неделю мы били баклуши, но отдых был прекрасным.
+Из-за этой ошибки он остался с носом перед заказчиком.
+He's been burning the candle at both ends trying to meet that deadline.
+When she heard the news, she bit her tongue to keep from saying something she'd regret.
+I thought I had the job in the bag, but they pulled the rug out from under me.
+Don't count your chickens before they hatch; the deal isn't final yet.
+He's always been a loose cannon, so no one was surprised when he quit without notice.
+The whole project went down the drain after the investor backed out.
+She's got a chip on her shoulder about being overlooked for the promotion.
+You need to take the bull by the horns and ask for a raise.
+After years of hard work, he finally hit the jackpot with his startup.
+They're just paying lip service to the idea of sustainability without taking real action.
+I know you're nervous, but you have to face the music eventually.
+He's got a heart of gold, even if his jokes fall flat sometimes.
+After his boss yelled at him, he decided to bite the bullet and apologize.
+She's been burning the midnight oil to meet the deadline.
+His plan was barking up the wrong tree from the start.
+We're all in the same boat during this market crash.
+You should take his advice with a grain of salt; he's not an expert.
+I haven't seen her in a blue moon; she rarely visits.
+He always cuts corners on his work, and it shows.
+Feeling under the weather, she decided to stay home.
+The comedian's joke stole the speaker's thunder.
+When pigs fly, I'll believe his promises.
+She was on pins and needles before the interview.
+He's always playing it by ear, never planning ahead.
+He finally spilled the beans about the surprise party, and now everyone knows.
+After months of hard work, she decided to throw in the towel and start a new career.
+Don't count your chickens before they hatch; the deal isn't signed yet.
+When he saw the test results, he bit the bullet and called his parents.
+She's been under the weather all week, but she still came to the meeting.
+The new manager really knows how to play hardball during negotiations.
+I thought we were friends, but he stabbed me in the back during the presentation.
+He's always chasing rainbows, dreaming of get-rich-quick schemes.
+To make ends meet, she works two jobs and still has time for her family.
+The project hit a snag when the supplier went out of business.
+She wore her heart on her sleeve, and everyone could see she was hurt.
+You can't teach an old dog new tricks, so let the veteran handle it his way.
+He's been carrying a chip on his shoulder ever since he was passed over for the promotion.
+I've been burning the candle at both ends trying to meet this deadline, and it's taking a toll.
+She was born with a silver spoon in her mouth, so she never had to worry about making rent.
+You can't trust a word he says; he's a wolf in sheep's clothing.
+She always wears her heart on her sleeve, so you never have to guess how she's feeling.
+Don't cut corners on this project; the client will notice the difference immediately.
+He's been tempting fate by driving with those bald tires.
+My boss is a real tough cookie – she never blinks under pressure.
+I got cold feet right before the interview and almost didn't show up.
+You need to pull your weight around here; the rest of us are exhausted.
+He's got the Midas touch – every startup he invests in turns to gold.
+Don't be such a wet blanket; we're trying to have a good time.
+He's been walking on eggshells around her ever since their big argument about the wedding.
+She decided to go the extra mile and prep a demo slide deck to wow the client on Friday.
+Missing that flight turned out to be a blessing in disguise because I ran into my old mentor at the gate.
+You can't trust Marcus with any sensitive info; he's a total loose cannon when he gets excited.
+Don't get your knickers in a twist over a simple formatting error in the report.
+She's been burning the candle at both ends juggling night shifts and classes, and it's starting to show.
+That was a close shave with the truck on the motorway, and I'm still shaking from it.
+My neighbour is the salt of the earth, always shovelling the walkway for everyone on the block.
+He was beside himself with anger after discovering the project files had been deleted.
+We shouldn't cut corners on the structural inspection, no matter how tight the deadline is.
+Nobody saw it coming, but Hiroko is a dark horse when it comes to trivia nights.
+I need to get this off my chest before it eats me alive: I accidentally deleted your research notes.
+Burning the midnight oil won't guarantee success, but it might help you get closer to the finish line.
+When she heard the news, she was over the moon and couldn't stop grinning.
+He's been biting the bullet for weeks, trying to finish the project on his own.
+Don't let the cat out of the bag about the surprise party.
+They decided to throw in the towel after the third failed attempt.
+She has a chip on her shoulder about anyone questioning her expertise.
+I think we should call it a day and start fresh tomorrow morning.
+He's been pulling my leg all afternoon with that ridiculous story.
+The new policy is a double-edged sword that could either help or harm small businesses.
+You need to face the music and admit that you made a mistake.
+She's been keeping me at arm's length ever since that argument.
+After months of hard work, he finally heard it through the grapevine that he was getting the promotion.
+He finally decided to bite the bullet and ask for a promotion.
+She hit the nail on the head when she diagnosed the problem.
+I had to face the music after missing the deadline.
+We had to burn the midnight oil to finish the project on time.
+Investing all your money in one stock is putting all your eggs in one basket.
+Now the ball is in your court to respond to their offer.
+That exam was a piece of cake for him after all his studying.
+I only see my childhood friend once in a blue moon.
+After a long day, I'm ready to hit the sack.
+She's feeling a bit under the weather today.
+That vintage watch cost him an arm and a leg.
+He kicked the bucket before he could see his granddaughter graduate.
+She’s been under the weather all week and finally went to the doctor.
+When he heard the news, he completely lost his marbles and started shouting.
+This project is a wild goose chase without proper data.
+After the merger, the new boss decided to call the shots.
+I’m sitting on the fence about whether to accept the job offer.
+He’s always been a bit of a dark horse in our friend group.
+She let the cat out of the bag about the surprise party.
+Pulling an all-nighter was a steep hill to climb for the exam.
+The new intern is still wet behind the ears, but eager to learn.
+Their plan hit a snag when funding was suddenly cut.
+Ну, конечно, ты опять сделал по-своему, молодец.
+Очень мило, что ты решил напомнить мне о моём возрасте.
+Да ладно, всё равно уже ничего не исправить, так что не парься.
+Спасибо за помощь, ты так вовремя подоспел, просто неоценимо.
+Какой красивый подарок, я как раз мечтал о чём-то таком полезном.
+Ой, какая удача, что ты опять опоздал, я так люблю ждать.
+Ты, как всегда, в своём репертуаре — оригинально, ничего не скажешь.
+Ну что ж, раз ты так решил, значит, так тому и быть.
+Замечательно, что ты всё успел доделать к моему приходу, просто идеально.
+Неужели это всё, что ты можешь предложить? Ну, ладно, сойдёт.
+Какая неожиданная забота — я прямо растроган.
+Отлично, теперь у меня будет ещё один повод для гордости.
+Конечно, вот хорошо, я всё понял.
+Мне очень нравится, как ты всегда умеешь найти правильное слово.
+Ты сегодня выглядишь просто замечательно, правда, очень свежо.
+Спасибо, что напомнил, я бы сам никогда не догадался.
+Ну что ж, как скажешь, я человек покладистый.
+Ой, не обращай внимания, я просто в восторге.
+Твой энтузиазм, безусловно, заразителен.
+Я так рад, что ты решил поделиться своим мнением.
+Конечно, мне больше нечем заняться, кроме как ждать.
+Это было очень предусмотрительно с твоей стороны.
+Ты, как всегда, безупречен в своей прямоте.
+Ну, видимо, у меня сегодня день сюрпризов.
+Очень мило, что ты так старался, хоть и вышло не совсем то, что нужно.
+Как удобно, что ты решил поделиться своим мнением именно сейчас.
+Ну, зато у тебя точно есть своё мнение по этому вопросу.
+Спасибо, что пришёл вовремя — это приятный сюрприз.
+Отлично, просто замечательно, что всё пошло не по плану.
+Да нет, ничего не случилось, всё просто прекрасно.
+Удивительно, как тебе удаётся всегда находить самый сложный путь.
+Ну что ж, видимо, это лучшее, на что я мог рассчитывать.
+Какой ты молодец, что напомнил мне об этом прямо перед сдачей.
+Очень рада, что ты наконец-то заметил мои усилия.
+Забавно, что ты считаешь это хорошей идеей — я просто в восторге.
+Ну да, конечно, я и не сомневался, что ты всё сделаешь по-своему.
+Ты так хорошо выглядишь сегодня, что я даже не сразу тебя узнал.
+Спасибо, что пришли так рано, мы уже успели соскучиться.
+Ну, если ты считаешь, что это лучший вариант...
+Ладно, видимо, так и должно было случиться.
+Отлично, просто замечательно, что ты снова опоздал, я так рада.
+Ты удивительно терпеливый человек, раз можешь это слушать.
+Ой, извините, я не знала, что вы настолько заняты, чтобы отвечать на сообщения.
+Я, конечно, понимаю, что у тебя были причины...
+Ну что ж, значит, не судьба.
+Как здорово, что ты решил присоединиться к нам, мы без тебя не начинали.
+Большое спасибо за помощь, я бы сам ни за что не справился.
+Ну что, отличный результат, будем считать это опытом.
+Ну, ты, как всегда, «помог» — теперь я буду разбираться с этим до вечера.
+Очень рада, что ты вспомнил про уборку, когда гости уже на пороге.
+Конечно, делай, как хочешь — я ведь всего лишь твоя жена.
+Отлично, ещё один проваленный дедлайн — просто в точку.
+Какой же ты у меня молодец, что сломал мне выходной.
+Спасибо за комплимент, я тоже считаю, что «очень продуктивно» — это сидеть в телефоне.
+Ну что ж, видимо, такова моя судьба — доделывать за тобой.
+Просто замечательно, что дождь решил пойти именно в день нашей прогулки.
+Я безумно счастлив, что ты выбрал именно этот ресторан, где подают сырую рыбу.
+Ничего страшного, я привык, что мой день рождения никто не помнит.
+Ах, какой сюрприз — ты опять забыл вынести мусор.
+Конечно, я пойду на твою встречу, мне ведь всё равно нечем заняться.
+Ну конечно, ты, как всегда, справился просто блестяще, просто не соизволил сказать мне об этом заранее.
+Как же замечательно, что у тебя нашлось время поделиться со мной этой новостью в последнюю минуту.
+Ой, да что ты, я нисколько не устала, просто сидеть и ждать тебя три часа — такое удовольствие.
+Какой чуткий с твоей стороны жест — напомнить мне о моей ошибке при всех коллегах.
+Да ладно, ничего страшного, что ты забыл про нашу встречу, у меня всё равно других дел не было.
+Я так рада, что ты решил сам выбрать ресторан, — теперь я хоть узнаю, какие места ты считаешь достойными.
+Конечно, я понимаю, что ты занят, просто приятно осознавать, что твоя работа важнее нашего разговора.
+Отлично, просто замечательно, что ты пришёл без подарка — я как раз собиралась учить детей не ждать материального.
+Спасибо, что пригласил меня на свою свадьбу, хоть мы и не общались пять лет, я тронута до глубины души.
+Ты так заботливо напомнил мне о моём возрасте — я обязательно запишу это в список твоих комплиментов.
+О, не волнуйся, я уже привыкла, что ты отвечаешь на сообщения через неделю, это придаёт нашей переписке пикантности.
+Как трогательно, что ты так переживаешь за моё здоровье — видимо, мои жалобы на погоду звучали как крик о помощи.
+Ты так хорошо справился, для человека без опыта.
+Спасибо, что предупредили, я очень ценю.
+Немного странно, что они решили так сделать.
+Ну что ж, видимо, так и должно было быть.
+Отлично, просто замечательно, что так вышло.
+Твои усилия заметны, хотя результат мог бы быть лучше.
+Конечно, ты прав, как скажешь.
+Мне кажется, это немного неудобно.
+Ладно, ничего не поделаешь.
+Ну и прекрасно, я просто счастлив.
+Ты очень старалась, это видно.
+Я, конечно, не настаиваю, но было бы хорошо.
+Ну да, конечно, ты у нас самый занятой, всем остальным можно только позавидовать.
+Очень мило с твоей стороны вспомнить о моём дне рождения спустя неделю.
+Я, пожалуй, просто посижу тихо, а ты продолжай командовать.
+Спасибо, что хоть сейчас соизволил появиться.
+Ну что ж, видимо, у нас сегодня «вечер откровений», давайте начнём.
+Твой гениальный план сработал ровно так, как мы и ожидали.
+Как интересно, что ты считаешь это проблемой, а я просто молчу.
+Пожалуйста, можешь не извиняться, я уже привык к такому отношению.
+Ой, какой у тебя красивый голос, особенно когда ты кричишь.
+Приятно осознавать, что твоё мнение для тебя важнее всего на свете.
+Ладно, делай как знаешь, я слишком устал тебя переубеждать.
+Ну конечно, я безумно рад, что ты решил поделиться со мной своей идеей в последний момент.
+Ну ты и молодец, что наконец-то догадался прийти вовремя.
+Спасибо, что предупредили заранее, это было очень удобно.
+Немного неожиданно, но ладно, всё равно придётся как-то выкручиваться.
+Ну, бывает, ничего не поделаешь.
+Как замечательно, что всё так сложилось, я просто счастлив.
+Очень рада, что ты нашёл время на это, я уж думала, не дождусь.
+Ты так хорошо выглядишь, когда не устаёшь — отдохнул, что ли?
+У нас тут маленькая неприятность: компьютер сгорел вместе с отчётом.
+Что ж, я больше ничего и не ждал от этого вечера.
+Отлично, просто отлично, я так рад, что мы это выяснили только сейчас.
+Твоя помощь была неоценима — я справился бы и без неё, но теперь точно быстрее.
+Видимо, так будет всегда, и мне остаётся только привыкать.
+Ну что ж, ты, как всегда, удивил — в этот раз хотя бы не опоздал на час.
+Спасибо, что хотя бы предупредил, что задержишься — приятно знать, что меня не забыли.
+Да нет, всё замечательно, просто ужасно мило, что ты решил отдохнуть именно сегодня.
+Конечно, я не против, пусть всё будет по-твоему, я уж как-нибудь переживу.
+Отлично, ещё один вечер в одиночестве — просто мечта.
+Ты так аккуратно всё разложил, что теперь мне придётся заново искать свои вещи.
+Очень мило с твоей стороны напомнить мне об этом прямо перед сном.
+Ну, хоть кофе не пересолил — уже прогресс.
+Oh, you're wearing that shirt again.
+It's fine, I'll just redo the whole thing.
+No, no, I'm not upset at all. Why would I be?
+That's an interesting choice.
+I appreciate your effort, though the result is... unexpected.
+What a wonderful surprise.
+I'm sure you have your reasons.
+It's not like I had anything better to do.
+How thoughtful of you to leave the mess for me.
+I guess that dress really is... something.
+Oh, you're so thoughtful to finally help with the dishes.
+Thanks for noticing all the work I put into this.
+No, it's fine. I really don't need anyone to listen.
+I'm sure your explanation for being late is fascinating.
+How nice of you to show up after dessert was served.
+You must be proud of how much your voice carries.
+Ah, you remembered my name. How extraordinary.
+It's fine if you can't make it; I was just planning a quiet evening alone anyway.
+I'm so glad you decided to share your opinion.
+Well, at least you tried, which is more than some people do.
+How generous of you to point out my flaws in such detail.
+I guess this is just one of those days where everything goes perfectly wrong.
+You’ve really outdone yourself on this project—it’s almost exactly what I asked for.
+No, no, go ahead and take the last slice; I’m fine with my coffee.
+Sure, I’d love to hear all about your weekend again, it’s my favorite topic.
+Oh, you remembered my birthday—how sweet of you to mention it now.
+It’s amazing how you can make a simple task feel like an Olympic event.
+At least the weather matches my enthusiasm for this meeting.
+Thanks for letting me know you’d be late—ten minutes before the movie ended.
+I’d say I’m surprised you chose that place for dinner, but I’m really not.
+Well, that’s one way to solve a problem, I suppose.
+I’m thrilled you decided to share your opinion just now, it really ties the room together.
+Sure, I’ll add that to my list of things I didn’t get to do today.
+You actually did a decent job on that report, for once.
+Thank you so much for letting me know about the meeting five minutes before it started.
+I suppose that's one way to handle the situation.
+Well, I guess we'll just have to make do with what we have.
+Oh, wonderful, another last-minute change – how fun.
+That's a very interesting choice of outfit for today.
+No, no, I insist you go ahead and take the last piece – I wouldn't want to inconvenience you.
+The presentation could have gone a bit smoother.
+I suppose it's too late to change anything now.
+Great, just great, everything is going exactly as planned.
+You're surprisingly good at this for someone with no experience.
+I'm just surprised you managed to finish it on time – that's wonderful.
+Oh, you really put a lot of thought into this outfit.
+I guess that's one way to solve the problem.
+Sure, I'd be delighted to clean up your mess.
+That's certainly a unique interpretation of the instructions.
+I appreciate your willingness to share your opinion so openly.
+No, it's fine, I wasn't using my time anyway.
+What a wonderful surprise to find the dishes still in the sink.
+You must be so pleased with that result.
+I'm sure you did exactly what you thought was best.
+Don't worry about me, I'll just figure it out myself.
+It's amazing how you always manage to find the most efficient way.
+You’ve actually managed to look presentable today.
+Thank you for finally getting back to me.
+There’s a slight chance the project might be a tiny bit behind schedule.
+I suppose this will have to do.
+Oh, that’s just wonderful news, exactly what I needed.
+I appreciate your input, even if it was a little late.
+It’s not like I was counting on that help or anything.
+You’re surprisingly good at following instructions when you want to be.
+What a lovely surprise to have another meeting added to my schedule.
+I hope you’re not too tired after all that effort.
+It’s fine, I didn’t really need that document anyway.
+Oh, you remembered to take out the trash this time.
+It's so nice that you're finally here.
+I guess some people just don't have the same standards.
+Well, that's one way to do it.
+Thanks for explaining that so thoroughly.
+It's fine, I'll just fix it myself.
+You look... interesting today.
+I'm glad you feel so strongly about this.
+No, no, please continue—I love hearing your opinion.
+That's certainly a bold choice.
+I appreciate your enthusiasm, even if it's a bit misguided.
+That's very sweet of you to notice, and I'm sure you did your best.
+Oh, I'm just thrilled that you decided to show up thirty minutes late again.
+I suppose that's one way to handle the situation, if you consider it handled.
+Well, at least the coffee is hot, even if everything else is cold.
+You're so brave to wear that color; I could never pull it off.
+I'm sure your logic makes perfect sense somewhere.
+It's fine, I don't mind spending my weekend fixing what you broke.
+I'm so glad you explained that, because I would never have guessed by myself.
+It's okay, I didn't really want to win the bid anyway.
+Your enthusiasm for this project is truly inspiring, in its own way.
+I appreciate your help, such as it was.
+It's just lovely that the weather decided to ruin the wedding exactly when I said it would.
+You have a real talent for making things look effortless.
+I'll just wait here, take your time.
+The project might be slightly behind schedule.
+I guess this is what we get for trying.
+Мне нужно купить хлеб в магазине.
+Завтра встреча с врачом в десять утра.
+Я положила ключи на полку в прихожей.
+Собака просит гулять каждое утро.
+Позвони мне, когда выйдешь из метро.
+У ребёнка сегодня нет уроков в школе.
+Я забыл выключить свет в коридоре.
+На ужин будет картошка с котлетами.
+Трава на газоне уже выросла до колена.
+Соседи сверху громко слушают музыку.
+Отправь мне список покупок в сообщении.
+Кошка сегодня съела весь корм.
+Встреча назначена на три часа дня.
+Я купил хлеб и молоко в магазине.
+Сын уже сделал уроки по математике.
+Позвони мне, когда выйдешь из дома.
+Собака гуляла в парке двадцать минут.
+В субботу планируем поехать на дачу.
+Не забудь выключить свет на кухне.
+Он пришёл с работы в семь вечера.
+Цветы на подоконнике надо полить.
+Я купил корм для кота вчера вечером.
+Забери, пожалуйста, посылку с почты до шести.
+Встреча перенесена на среду, пятнадцать часов.
+У соседей снова лает собака всю ночь.
+Я записался к стоматологу на следующую пятницу.
+Нужно сдать отчёт до конца рабочего дня.
+Детей заберут из школы в четыре тридцать.
+Дождь идёт уже третий день подряд.
+Я забыл купить молоко и хлеб.
+Тебе позвонил курьер, просил перезвонить.
+Отправь мне список продуктов в мессенджер.
+Ремонт в прихожей закончат через две недели.
+Я завтра заберу детей из школы.
+Купи, пожалуйста, хлеб и молоко.
+Нужно поменять лампочку в коридоре.
+Я приготовил ужин.
+В магазине скидка на стиральный порошок.
+Я отправил отчет по электронной почте.
+Мы смотрим фильм вечером.
+Я купил молоко и хлеб по дороге домой.
+Кошка сегодня утром выпила всю воду из миски.
+У вас сегодня хорошая погода?
+Встреча перенесена на следующую пятницу.
+Суп уже остыл, можно разогреть в микроволновке.
+У меня болит голова, нужно выпить таблетку.
+Соседи сверху громко слушают музыку после одиннадцати.
+Отчет нужно сдать до четверга.
+Магазин закрывается в девять вечера.
+Я собираюсь посадить цветы на балконе в выходные.
+Я купил хлеб и молоко.
+Ключи лежат в прихожей на полке.
+Собака просится гулять.
+Погода сегодня солнечная и тёплая.
+Позвони мне после обеда.
+Дети уже сделали уроки.
+Машина стоит на стоянке у дома.
+Я помыл посуду после обеда.
+Поезд отправляется в семь утра.
+Нужно купить хлеб и масло.
+Я отправил отчет начальнику.
+Мы смотрели фильм вчера вечером.
+Ребенок делает домашнее задание.
+Собака гуляла в парке двадцать минут сегодня утром.
+Мы запланировали ужин с родственниками на субботу.
+Не забудь оплатить счёт за электричество до десятого числа.
+Я позвоню в клинику, чтобы записаться на приём к врачу.
+На полке в коридоре лежат ключи от машины.
+Дети уже сделали домашнее задание по математике.
+Холодильник надо разморозить в конце недели.
+Я взял с собой зонт, потому что обещали дождь.
+На вечер пятницы назначена встреча с коллегой.
+Почистил обувь перед выходом из дома.
+Мне нужно забрать детей из школы в три часа.
+Я зайду в аптеку после работы.
+Кот съел весь корм, надо купить ещё.
+Сегодня хорошая погода для прогулки.
+Мама попросила купить хлеб по дороге домой.
+Я оплатил счета за электричество вчера вечером.
+Собаку нужно выгулять перед сном.
+У соседей новый автомобиль.
+Я записался к врачу на следующую неделю.
+Брат приедет в гости в субботу.
+Я купил молоко и хлеб в магазине.
+Собака просится гулять утром и вечером.
+Завтра у нас встреча в три часа дня.
+Пожалуйста, передай соль.
+Забери детей из школы в пять часов.
+У меня закончился стиральный порошок.
+Мы едем в гости к бабушке в субботу.
+На столе лежит книга и очки.
+Напоминаю про оплату счета за интернет.
+Завтра в десять утра у меня встреча с врачом.
+Кошка спит на диване уже три часа.
+Не забудь забрать посылку с почты после обеда.
+У соседей снова громко играет музыка вечером.
+Мне нужно заплатить за интернет до пятницы.
+Сегодня я планирую приготовить ужин из курицы и риса.
+Автобус приходит на остановку каждые пятнадцать минут.
+В магазине сегодня действует скидка на стиральный порошок.
+Ребёнок попросил купить ему новый конструктор.
+Мы собираемся поехать к бабушке на выходные.
+Сегодня я купил корм для кошки.
+Собака погуляла два раза за день.
+У детей закончился хлеб в холодильнике.
+My dad is picking me up from the airport at 8 PM.
+I need to drop off the dry cleaning before they close at six.
+The cat knocked over a full glass of water on the kitchen table.
+Our neighbor is mowing his lawn every Saturday morning.
+I have a dentist appointment at 10 AM on Thursday.
+Please remind me to buy milk and eggs when we go to the store.
+The package was delivered to the front porch yesterday afternoon.
+I am taking the dog for a walk as soon as I finish this email.
+Can you please pass me the salt?
+The meeting has been moved to the conference room on the second floor.
+I have not heard back from the repair shop about my car.
+She is baking a chocolate cake for her daughter's birthday party.
+Please pick up milk and bread on your way home.
+The dog needs to be walked before eight o'clock.
+I have a dentist appointment at three tomorrow afternoon.
+Can you remind me to call the plumber about the leak?
+The laundry is folded and on the bed.
+We are having pasta for dinner tonight.
+The meeting has been moved to Thursday at ten.
+Please close the window before you leave the room.
+The cat's food bowl is empty and needs refilling.
+I will be at the gym until six thirty.
+Is there any mail in the mailbox today?
+Please buy milk and bread on your way home.
+The dog needs to go for a walk before dinner.
+I saw your new car in the driveway yesterday.
+The meeting has been moved to Thursday at 2 PM.
+We are out of dishwasher detergent.
+Can you drop off the package at the post office?
+The cat's food bowl is empty.
+It rained all morning.
+I have a dentist appointment at 10 AM.
+The laundry is finished.
+I will arrive at the restaurant at 7:30.
+The dog needs to go out at six.
+My flight arrives at three in the afternoon.
+The meeting has been moved to Thursday.
+I need to renew my passport before the trip.
+The cat is sleeping on the sofa again.
+Can you turn down the volume on the TV?
+The grocery store closes at nine tonight.
+I will water the plants while you are away.
+The train is running ten minutes late today.
+Please remind me to call the dentist tomorrow.
+The package should arrive by Friday.
+I need to pick up my dry cleaning before 6 PM.
+Can you remind me to call the vet about Luna’s vaccination?
+The grocery store is open until 10 tonight.
+Please lock the back door before you leave for work.
+My mother’s flight arrives at 3:45 tomorrow afternoon.
+I have a dentist appointment at 2 PM on Thursday.
+Could you water the plants while I’m away this weekend?
+The dog’s leash is hanging by the front door.
+I’ll meet you at the bus stop after my meeting ends.
+Did you remember to buy milk on your way home?
+The car needs an oil change before our road trip next month.
+Our trash pickup is every Tuesday morning.
+I need to pick up my daughter from soccer practice at five.
+Please drop off the dry cleaning on your way to work.
+The dog needs to be walked twice a day now.
+It is supposed to rain this afternoon, so take an umbrella.
+I have to reschedule my dentist appointment to next Tuesday.
+The grocery list is on the kitchen counter, please add milk.
+My son's school play starts at seven in the auditorium.
+Could you water the plants while I am away this weekend?
+The cat vomited on the rug again, I will clean it later.
+Let's meet for coffee at ten o'clock tomorrow morning.
+I need to buy stamps and mail this letter today.
+The new restaurant on Main Street has very good burgers.
+I need to buy milk and bread on the way home.
+Please pick up the dry cleaning before six o'clock.
+The cat threw up on the rug again this morning.
+We have a dentist appointment at three on Tuesday.
+Can you remind me to call the plumber tomorrow?
+The train is delayed by ten minutes due to signal issues.
+I left the garage door open by accident last night.
+She finished her homework and then went outside to play.
+Please set the table for dinner at seven.
+The printer is out of paper and needs a new cartridge.
+He always takes the dog for a walk right after breakfast.
+The meeting was rescheduled from Thursday to Friday morning.
+I need to drop off the dry cleaning before noon.
+I heard you got a new car last week.
+Our dentist appointment is at 3 PM on Thursday.
+The kitchen sink is leaking under the cabinet.

@@ -1,29 +1,41 @@
 {
-  "_comment": "Stage A generator roster, called via OpenRouter. Edit slugs/roles here as OpenRouter's catalog shifts — the script reads this file, no code changes needed. Verify current slugs against https://openrouter.ai/models before running at volume.",
+  "_comment": "Stage A generator roster, called via OpenRouter. Edit slugs/roles here as OpenRouter's catalog shifts -- the script reads this file, no code changes needed. Verify current slugs against https://openrouter.ai/models before running at volume. Rebuilt 2026-09-03 after prior slug errors; qwen/qwen3.8-flash swapped for google/gemini-3.8-flash on 2026-09-03 after batch 1 reliability data (see _dropped). Estimated cost for a 5,000-seed x 4-model Stage A run with the current roster: roughly $5.50-6 total (up from the original ~$2.60-3 estimate -- gemini-3.8-flash alone is ~$2.9 of that at full Flash-tier pricing, no Flash-Lite variant exists for 3.8 yet).",
   "stage_a_generators": [
     {
-      "slug": "qwen/qwen3.5-plus",
-      "role": "primary multilingual generator",
-      "notes": "Strong documented Russian coverage, low cost"
+      "slug": "deepseek/deepseek-v4-flash",
+      "role": "primary cheap generator",
+      "notes": "$0.05/$0.16 per M -- cheapest capable option available. 1.3M context. Released Aug 1, 2026."
     },
     {
-      "slug": "mistralai/mistral-large-3",
+      "slug": "mistralai/mistral-small-2603",
       "role": "diversity generator",
-      "notes": "European lab, different training lineage than Qwen/DeepSeek, strong multilingual benchmarks"
+      "notes": "$0.15/$0.60 per M. European lab, different training lineage than Qwen/DeepSeek. Released Mar 16, 2026."
     },
     {
-      "slug": "google/gemini-2.5-flash",
-      "role": "quality generator",
-      "notes": "Independently benchmarked as a translation-quality leader among commercial engines; swap in a newer Gemini Flash tier as it becomes available"
+      "slug": "google/gemini-3.1-flash-lite",
+      "role": "quality generator, budget tier",
+      "notes": "$0.25/$1.50 per M. Gemini's line was independently benchmarked as a translation-quality leader; using the Flash-Lite tier instead of full Gemini 3.8 Flash ($0.75/$3.75) keeps this affordable at volume. Released May 7, 2026."
     },
     {
-      "slug": "baban/QwenTranslate_English_Russian",
-      "role": "literal-translation anchor",
-      "notes": "Small model fine-tuned specifically for EN<->RU translation; grounds the ensemble in translation accuracy"
+      "slug": "google/gemini-3.8-flash",
+      "role": "primary multilingual generator",
+      "notes": "$0.75/$3.75 per M -- full Flash tier, not Flash-Lite (no 3.8 Flash-Lite exists yet as of 2026-09-03). Released Sep 2, 2026. Replaces qwen/qwen3.8-flash (see _dropped) for reliability, not quality. NOTE: at ~5,000 seeds this one model alone is roughly $2.9 (~1.35M input + 0.5M output tokens at these rates), comparable to or more than the ENTIRE previous 4-model roster's original $2.60-3 estimate -- roster now has 2 Gemini-family models (this + gemini-3.1-flash-lite), which also reduces provider-lineage diversity versus the original 4-distinct-labs design. Smoke-test with 1-2 seeds before a large run, per this file's existing practice."
     }
   ],
+  "_dropped": {
+    "baban/QwenTranslate_English_Russian": "Not actually hosted on OpenRouter -- it's a Hugging Face / Featherless-hosted community fine-tune. Would need a separate integration (HF Inference API or self-hosting) to use, which isn't worth the complexity for this role right now. Revisit later if Stage A quality needs a dedicated literal-translation anchor.",
+    "qwen/qwen3.8-flash": "Removed after Stage B batch 1 (2026-09-03): 18/166 generation calls failed outright (10.8% failure rate, by far the worst of the 4-model roster -- deepseek 1/166, mistral 0/166, gemini 0/166). NOT a judgment-quality problem -- when qwen did respond, its has_subtext/category agreement with the final verified annotation was 85.8%/80.4%, second-best in the roster, and its translations were used in the final dataset about as often as deepseek's. This looks like an upstream reliability/rate-limit issue with this specific slug, not a model-quality issue. Revisit if a more stable Qwen flash-tier slug appears -- the underlying language quality was fine."
+  },
   "stage_c_coverage_model": {
     "slug": "minimax/minimax-m3",
     "notes": "1M context, cheap — used periodically to scan the accumulating dataset for redundancy/category gaps. Swap to a larger-context model (e.g. x-ai/grok-4-fast-reasoning) if the dataset outgrows this."
+  },
+  "stage_b_prefilter_model": {
+    "slug": "z-ai/glm-5.3-flash",
+    "notes": "Added 2026-09-03. Automated pre-filter that runs unattended between deterministic_checks.py and the Cowork LLM judge -- auto-resolves sentences where every surviving Stage A generator already agrees on has_subtext+category (picks/polishes the best translation among agreeing candidates only; does not re-decide the verdict itself). $0.075/$0.25 per M during promo (through ~2026-09-09), $0.15/$0.50 after. 1.3M context. Released Aug 26, 2026. On batch 1 data, ~46.7% of sentences had full unanimous agreement on both has_subtext and category -- that's roughly the size of the Cowork workload this would have cut. See stage_b_prefilter.py and docs/DESIGN.md."
+  },
+  "seed_generator_model": {
+    "slug": "deepseek/deepseek-v4-flash",
+    "notes": "Added 2026-09-03. Delegates seed-writing (generate_seeds.py) instead of hand-writing seeds_batchN.txt -- reused deepseek-v4-flash since it already proved most reliable (1/166 failures) and highest-agreement (88.5%/85.5%) generator in batch 1, and this task does not need a second opinion the way Stage A generation does. Swap freely if a batch's sentences feel repetitive -- this is generation, not verification, low stakes to change."
   }
 }
