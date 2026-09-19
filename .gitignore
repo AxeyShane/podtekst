@@ -29,6 +29,10 @@ data-pipeline/raw-media/
 # committed locally only on the docs-private branch (never pushed).
 docs/
 
+# Local backup bundles / scrub clones — never commit
+_backup/
+_scrub-tmp/
+
 # OS
 .DS_Store
 Thumbs.db
