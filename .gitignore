@@ -25,6 +25,10 @@ data-pipeline/raw-media/
 *.srt
 *.ass
 
+# Internal design/planning docs — kept out of the public repo entirely,
+# committed locally only on the docs-private branch (never pushed).
+docs/
+
 # OS
 .DS_Store
 Thumbs.db
