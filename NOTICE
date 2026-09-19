@@ -4,16 +4,16 @@ This project, Podtekst, incorporates code from the following open source
 projects.
 
 --------------------------------------------------------------------------
-Google AI Edge Gallery
+LiteRT-LM
 --------------------------------------------------------------------------
-Source: https://github.com/google-ai-edge/gallery
+Source: https://github.com/google-ai-edge/LiteRT-LM
 License: Apache License 2.0
 
-Portions of this project's on-device model loading and LiteRT inference
-code are derived from Google AI Edge Gallery. Copyright and license notices
-from the original source files are preserved in the corresponding files
-within this repository. Modifications made to these files are noted at the
-top of each modified file.
+This project depends on LiteRT-LM (its Kotlin `Engine`/`EngineConfig`/
+`Conversation` API) as a standalone Gradle dependency for on-device model
+loading and LLM inference. No files from LiteRT-LM are copied into or
+modified within this repository — it is used as an unmodified library
+dependency, per its Apache-2.0 terms.
 
 --------------------------------------------------------------------------
 FlorisBoard

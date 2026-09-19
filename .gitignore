@@ -16,6 +16,15 @@ model/*.task
 model/*.tflite
 model/checkpoints/
 
+# Local-only third-party training media — never committed or distributed.
+
+
+data-pipeline/raw-media/
+*.mkv
+*.mp4
+*.srt
+*.ass
+
 # OS
 .DS_Store
 Thumbs.db
