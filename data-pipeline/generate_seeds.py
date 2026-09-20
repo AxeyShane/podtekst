@@ -147,7 +147,8 @@ def load_existing_seeds(paths):
     return existing
 
 
-def call_model(category, lang, n, model_slug, api_key, max_tokens=1500):
+def call_model(category, lang, n, model_slug, api_key, max_tokens=1500,
+               provider=None, api_model=None):
     brief = CATEGORY_BRIEFS[category]
     system = SYSTEM_TEMPLATE.format(
         lang_name=LANG_NAMES[lang], category=category, brief=brief, n=n
@@ -156,13 +157,14 @@ def call_model(category, lang, n, model_slug, api_key, max_tokens=1500):
         "https://openrouter.ai/api/v1/chat/completions",
         headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
         json={
-            "model": model_slug,
+            "model": api_model or model_slug,
             "messages": [
                 {"role": "system", "content": system},
                 {"role": "user", "content": f"Write {n} {category} sentences in {LANG_NAMES[lang]} now."},
             ],
             "max_tokens": max_tokens,
             "temperature": 1.0,
+            **({"provider": provider} if provider else {}),
         },
         timeout=45,
     )
@@ -177,7 +179,7 @@ def call_with_retry(category, lang, n, model_slug, api_key):
     last_error = None
     for attempt in range(3):
         try:
-            return call_model(category, lang, n, model_slug, api_key)
+            return call_model(category, lang, n, model_slug, api_key, provider=provider, api_model=api_model)
         except Exception as e:
             last_error = e
             wait = 5 * (attempt + 1)
@@ -212,11 +214,15 @@ def main():
         raise SystemExit("Set OPENROUTER_API_KEY in your environment first.")
 
     model_slug = args.model
+    provider, api_model = None, None
     if not model_slug:
         try:
             with open(args.config, encoding="utf-8") as f:
                 cfg = json.load(f)
-            model_slug = cfg.get("seed_generator_model", {}).get("slug", DEFAULT_MODEL)
+            sg_cfg = cfg.get("seed_generator_model", {})
+            model_slug = sg_cfg.get("slug", DEFAULT_MODEL)
+            provider = sg_cfg.get("provider")
+            api_model = sg_cfg.get("api_model")
         except FileNotFoundError:
             model_slug = DEFAULT_MODEL
 

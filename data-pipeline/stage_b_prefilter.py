@@ -104,7 +104,8 @@ def eligible_for_autoresolve(valid_candidates, min_agreement):
     return True, top_subtext, cats.pop(), agreeing, fraction
 
 
-def call_glm(source_text, has_subtext, category, agreeing, model_slug, api_key):
+def call_glm(source_text, has_subtext, category, agreeing, model_slug, api_key,
+             provider=None, api_model=None):
     candidate_lines = "\n".join(
         f'- translation: "{c.get("translation")}" | nuance_note: "{c.get("nuance_note", "")}"'
         for c in agreeing
@@ -118,12 +119,13 @@ def call_glm(source_text, has_subtext, category, agreeing, model_slug, api_key):
         "https://openrouter.ai/api/v1/chat/completions",
         headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
         json={
-            "model": model_slug,
+            "model": api_model or model_slug,
             "messages": [
                 {"role": "system", "content": PREFILTER_SYSTEM_PROMPT},
                 {"role": "user", "content": user_msg},
             ],
             "max_tokens": 400,
+            **({"provider": provider} if provider else {}),
         },
         timeout=30,
     )
@@ -159,11 +161,15 @@ def main():
         raise SystemExit("Set OPENROUTER_API_KEY in your environment first.")
 
     model_slug = args.model
+    provider, api_model = None, None
     if not model_slug:
         try:
             with open(args.config, encoding="utf-8") as f:
                 cfg = json.load(f)
-            model_slug = cfg.get("stage_b_prefilter_model", {}).get("slug", DEFAULT_MODEL)
+            pf_cfg = cfg.get("stage_b_prefilter_model", {})
+            model_slug = pf_cfg.get("slug", DEFAULT_MODEL)
+            provider = pf_cfg.get("provider")
+            api_model = pf_cfg.get("api_model")
         except FileNotFoundError:
             model_slug = DEFAULT_MODEL
 
@@ -186,7 +192,8 @@ def main():
             continue
 
         try:
-            picked = call_glm(source_text, has_subtext, category, agreeing, model_slug, api_key)
+            picked = call_glm(source_text, has_subtext, category, agreeing, model_slug, api_key,
+                               provider=provider, api_model=api_model)
             resolved.append({
                 "source_lang": cands[0]["source_lang"],
                 "source_text": source_text,

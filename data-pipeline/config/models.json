@@ -1,30 +1,55 @@
 {
-  "_comment": "Stage A generator roster, called via OpenRouter. Edit slugs/roles here as OpenRouter's catalog shifts -- the script reads this file, no code changes needed. Verify current slugs against https://openrouter.ai/models before running at volume. Rebuilt 2026-09-03 after prior slug errors; qwen/qwen3.8-flash swapped for google/gemini-3.8-flash on 2026-09-03 after batch 1 reliability data (see _dropped). Estimated cost for a 5,000-seed x 4-model Stage A run with the current roster: roughly $5.50-6 total (up from the original ~$2.60-3 estimate -- gemini-3.8-flash alone is ~$2.9 of that at full Flash-tier pricing, no Flash-Lite variant exists for 3.8 yet).",
+  "_comment": "Stage A generator roster, called via OpenRouter. Edit slugs/roles here as OpenRouter's catalog shifts -- the script reads this file, no code changes needed. Verify current slugs against https://openrouter.ai/models before running at volume. Rebuilt 2026-09-03 after prior slug errors; qwen/qwen3.8-flash swapped for google/gemini-3.8-flash on 2026-09-03 after batch 1 reliability data (see _dropped). Roster updated again 2026-09-20: mistralai/mistral-small-2603 (reliability collapse) replaced by z-ai/glm-5.3-flash, google/gemini-3.1-flash-lite (weakest judgment quality) replaced by minimax/minimax-m3 -- see per-model notes and _dropped for details. Estimated cost for a 5,000-seed x 4-model Stage A run with the current roster: roughly $4-5 total, driven mostly by gemini-3.8-flash (~$2.9) -- re-verify against live OpenRouter pricing before a large run.",
   "stage_a_generators": [
     {
       "slug": "deepseek/deepseek-v4-flash",
       "role": "primary cheap generator",
-      "notes": "$0.05/$0.16 per M -- cheapest capable option available. 1.3M context. Released Aug 1, 2026."
+      "notes": "$0.05/$0.16 per M -- cheapest capable option available. 1.3M context. Released Aug 1, 2026.",
+      "provider": {
+        "order": [
+          "streamlake"
+        ],
+        "allow_fallbacks": true
+      },
+      "_provider_note": "StreamLake ~20%/50% cheaper than default routing as of 2026-09-20; allow_fallbacks=true so an outage there falls back to a pricier route instead of failing the call"
     },
     {
-      "slug": "mistralai/mistral-small-2603",
+      "slug": "z-ai/glm-5.3-flash",
       "role": "diversity generator",
-      "notes": "$0.15/$0.60 per M. European lab, different training lineage than Qwen/DeepSeek. Released Mar 16, 2026."
+      "notes": "$0.075/$0.25 per M via DeepInfra (promo may have ended -- verify at openrouter.ai/models before a large run; $0.15/$0.50 is the post-promo standard rate). Replaces mistralai/mistral-small-2603 (removed 2026-09-20, see _dropped): mistral's failure rate collapsed to 94.4% in batch 3 and 76.3% in batch 4, tripping the circuit breaker (config/model_health.json) -- root cause is mistral only having 2 non-redundant OpenRouter provider routes (both Mistral's own infra) vs 16-27 for the other roster models. glm-5.3-flash already proven reliable and cheap as this pipeline's stage_b_prefilter_model, and its different (Zhipu/Z.ai) training lineage preserves the diversity role mistral was filling. 1.3M context. Released Aug 26, 2026.",
+      "provider": {
+        "order": [
+          "deepinfra"
+        ],
+        "allow_fallbacks": true
+      },
+      "_provider_note": "DeepInfra is the cheapest route as of 2026-09-20, same provider pin already used for this model as stage_b_prefilter_model"
     },
     {
-      "slug": "google/gemini-3.1-flash-lite",
+      "slug": "minimax/minimax-m3",
       "role": "quality generator, budget tier",
-      "notes": "$0.25/$1.50 per M. Gemini's line was independently benchmarked as a translation-quality leader; using the Flash-Lite tier instead of full Gemini 3.8 Flash ($0.75/$3.75) keeps this affordable at volume. Released May 7, 2026."
+      "notes": "$0.23/$0.96 per M via CoreWeave -- cheaper than gemini-3.1-flash-lite's $0.25/$1.50 even before the :floor discount, and cheaper on output than gemini-3.1-flash-lite was after :floor. Replaces google/gemini-3.1-flash-lite (removed 2026-09-20, see _dropped): weakest judgment quality in the roster (78.9% subtext-agreement / 74.5% category-agreement vs 85-90%+ for the other three models) despite good reliability. minimax-m3 independently benchmarked well for translation quality, 13 provider routes, and is already trusted in this pipeline as stage_c_coverage_model. Also drops the roster from 2 Gemini-family models down to 1, restoring provider-lineage diversity.",
+      "provider": {
+        "order": [
+          "coreweave"
+        ],
+        "allow_fallbacks": true
+      },
+      "_provider_note": "CoreWeave is the cheapest route as of 2026-09-20"
     },
     {
       "slug": "google/gemini-3.8-flash",
       "role": "primary multilingual generator",
-      "notes": "$0.75/$3.75 per M -- full Flash tier, not Flash-Lite (no 3.8 Flash-Lite exists yet as of 2026-09-03). Released Sep 2, 2026. Replaces qwen/qwen3.8-flash (see _dropped) for reliability, not quality. NOTE: at ~5,000 seeds this one model alone is roughly $2.9 (~1.35M input + 0.5M output tokens at these rates), comparable to or more than the ENTIRE previous 4-model roster's original $2.60-3 estimate -- roster now has 2 Gemini-family models (this + gemini-3.1-flash-lite), which also reduces provider-lineage diversity versus the original 4-distinct-labs design. Smoke-test with 1-2 seeds before a large run, per this file's existing practice."
+      "notes": "$0.75/$3.75 per M -- full Flash tier, not Flash-Lite (no 3.8 Flash-Lite exists yet as of 2026-09-03). Released Sep 2, 2026. Replaces qwen/qwen3.8-flash (see _dropped) for reliability, not quality. NOTE: at ~5,000 seeds this one model alone is roughly $2.9 (~1.35M input + 0.5M output tokens at these rates), comparable to or more than the ENTIRE previous 4-model roster's original $2.60-3 estimate. As of 2026-09-20 this is the only Gemini-family model left in the roster (gemini-3.1-flash-lite replaced by minimax-m3, see _dropped), restoring provider-lineage diversity across the 4 generators. Smoke-test with 1-2 seeds before a large run, per this file's existing practice.",
+      "api_model": "google/gemini-3.8-flash:floor",
+      "_provider_note": ":floor requests Google's Flex service tier -- 50% cheaper, slightly higher latency, fine for this batch (non-realtime) workload"
     }
   ],
   "_dropped": {
     "baban/QwenTranslate_English_Russian": "Not actually hosted on OpenRouter -- it's a Hugging Face / Featherless-hosted community fine-tune. Would need a separate integration (HF Inference API or self-hosting) to use, which isn't worth the complexity for this role right now. Revisit later if Stage A quality needs a dedicated literal-translation anchor.",
-    "qwen/qwen3.8-flash": "Removed after Stage B batch 1 (2026-09-03): 18/166 generation calls failed outright (10.8% failure rate, by far the worst of the 4-model roster -- deepseek 1/166, mistral 0/166, gemini 0/166). NOT a judgment-quality problem -- when qwen did respond, its has_subtext/category agreement with the final verified annotation was 85.8%/80.4%, second-best in the roster, and its translations were used in the final dataset about as often as deepseek's. This looks like an upstream reliability/rate-limit issue with this specific slug, not a model-quality issue. Revisit if a more stable Qwen flash-tier slug appears -- the underlying language quality was fine."
+    "qwen/qwen3.8-flash": "Removed after Stage B batch 1 (2026-09-03): 18/166 generation calls failed outright (10.8% failure rate, by far the worst of the 4-model roster -- deepseek 1/166, mistral 0/166, gemini 0/166). NOT a judgment-quality problem -- when qwen did respond, its has_subtext/category agreement with the final verified annotation was 85.8%/80.4%, second-best in the roster, and its translations were used in the final dataset about as often as deepseek's. This looks like an upstream reliability/rate-limit issue with this specific slug, not a model-quality issue. Revisit if a more stable Qwen flash-tier slug appears -- the underlying language quality was fine.",
+    "mistralai/mistral-small-2603": "Removed 2026-09-20 after circuit breaker (config/model_health.json) auto-disabled it: failure rate collapsed to 94.4% in batch 3 and 76.3% in batch 4 (vs ~0-2.5% in batches 1-2). Root cause: only 2 non-redundant OpenRouter provider routes (both Mistral's own infra) vs 16-27 for the other roster models, so a single upstream outage takes the whole model down. Replaced by z-ai/glm-5.3-flash (see stage_a_generators).",
+    "google/gemini-3.1-flash-lite": "Removed 2026-09-20: weakest judgment quality in the roster across batches 1-4 (78.9% subtext-agreement / 74.5% category-agreement, vs 85-90%+ for deepseek-v4-flash and gemini-3.8-flash) despite good reliability -- a quality problem, not a reliability one, so no amount of provider-route tuning would have fixed it. Replaced by minimax/minimax-m3 (see stage_a_generators), which is cheaper, independently benchmarked well for translation quality, and reduces the roster's Gemini-family concentration."
   },
   "stage_c_coverage_model": {
     "slug": "minimax/minimax-m3",
@@ -32,10 +57,24 @@
   },
   "stage_b_prefilter_model": {
     "slug": "z-ai/glm-5.3-flash",
-    "notes": "Added 2026-09-03. Automated pre-filter that runs unattended between deterministic_checks.py and the Cowork LLM judge -- auto-resolves sentences where every surviving Stage A generator already agrees on has_subtext+category (picks/polishes the best translation among agreeing candidates only; does not re-decide the verdict itself). $0.075/$0.25 per M during promo (through ~2026-09-09), $0.15/$0.50 after. 1.3M context. Released Aug 26, 2026. On batch 1 data, ~46.7% of sentences had full unanimous agreement on both has_subtext and category -- that's roughly the size of the Cowork workload this would have cut. See stage_b_prefilter.py and docs/DESIGN.md."
+    "notes": "Added 2026-09-03. Automated pre-filter that runs unattended between deterministic_checks.py and the Cowork LLM judge -- auto-resolves sentences where every surviving Stage A generator already agrees on has_subtext+category (picks/polishes the best translation among agreeing candidates only; does not re-decide the verdict itself). $0.075/$0.25 per M during promo (through ~2026-09-09), $0.15/$0.50 after. 1.3M context. Released Aug 26, 2026. On batch 1 data, ~46.7% of sentences had full unanimous agreement on both has_subtext and category -- that's roughly the size of the Cowork workload this would have cut. See stage_b_prefilter.py and docs/DESIGN.md.",
+    "provider": {
+      "order": [
+        "deepinfra"
+      ],
+      "allow_fallbacks": true
+    },
+    "_provider_note": "DeepInfra is 50% cheaper than the post-promo standard rate as of 2026-09-20"
   },
   "seed_generator_model": {
     "slug": "deepseek/deepseek-v4-flash",
-    "notes": "Added 2026-09-03. Delegates seed-writing (generate_seeds.py) instead of hand-writing seeds_batchN.txt -- reused deepseek-v4-flash since it already proved most reliable (1/166 failures) and highest-agreement (88.5%/85.5%) generator in batch 1, and this task does not need a second opinion the way Stage A generation does. Swap freely if a batch's sentences feel repetitive -- this is generation, not verification, low stakes to change."
+    "notes": "Added 2026-09-03. Delegates seed-writing (generate_seeds.py) instead of hand-writing seeds_batchN.txt -- reused deepseek-v4-flash since it already proved most reliable (1/166 failures) and highest-agreement (88.5%/85.5%) generator in batch 1, and this task does not need a second opinion the way Stage A generation does. Swap freely if a batch's sentences feel repetitive -- this is generation, not verification, low stakes to change.",
+    "provider": {
+      "order": [
+        "streamlake"
+      ],
+      "allow_fallbacks": true
+    },
+    "_provider_note": "same StreamLake discount as the stage_a deepseek-v4-flash generator entry"
   }
 }

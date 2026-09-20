@@ -78,7 +78,8 @@ def load_seeds(path: str) -> list[str]:
         return [line.strip() for line in f if line.strip()]
 
 
-def call_model(sentence: str, model_slug: str, api_key: str, max_tokens: int = 1200) -> dict:
+def call_model(sentence: str, model_slug: str, api_key: str, max_tokens: int = 1200,
+               provider: dict | None = None, api_model: str | None = None) -> dict:
     """Calls one OpenRouter model to annotate one sentence."""
     response = requests.post(
         "https://openrouter.ai/api/v1/chat/completions",
@@ -87,13 +88,14 @@ def call_model(sentence: str, model_slug: str, api_key: str, max_tokens: int = 1
             "Content-Type": "application/json",
         },
         json={
-            "model": model_slug,
+            "model": api_model or model_slug,
             "messages": [
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user", "content": sentence},
             ],
             "max_tokens": max_tokens,
             "reasoning": {"effort": "low"},
+            **({"provider": provider} if provider else {}),
         },
         timeout=30,
     )
@@ -132,7 +134,8 @@ def call_model(sentence: str, model_slug: str, api_key: str, max_tokens: int = 1
     return parsed
 
 
-def call_model_with_retry(sentence: str, model_slug: str, api_key: str) -> dict:
+def call_model_with_retry(sentence: str, model_slug: str, api_key: str,
+                           provider: dict | None = None, api_model: str | None = None) -> dict:
     """Wraps call_model with two targeted retry strategies:
     - HTTP 429 (upstream rate limit): backoff and retry, up to 3 attempts.
     - Empty content (reasoning ate the whole token budget): retry once with
@@ -141,7 +144,7 @@ def call_model_with_retry(sentence: str, model_slug: str, api_key: str) -> dict:
     last_error = None
     for attempt in range(3):
         try:
-            return call_model(sentence, model_slug, api_key)
+            return call_model(sentence, model_slug, api_key, provider=provider, api_model=api_model)
         except RuntimeError as e:
             last_error = e
             msg = str(e)
@@ -153,7 +156,8 @@ def call_model_with_retry(sentence: str, model_slug: str, api_key: str) -> dict:
             if "EMPTY_CONTENT" in msg:
                 print(f"    -> reasoning ate the budget, retrying once with more room")
                 try:
-                    return call_model(sentence, model_slug, api_key, max_tokens=2500)
+                    return call_model(sentence, model_slug, api_key, max_tokens=2500,
+                                       provider=provider, api_model=api_model)
                 except RuntimeError as e2:
                     last_error = e2
                     break
@@ -213,7 +217,10 @@ def main():
                 print(f"[{call_count}/{total_calls}] SKIP model={slug}  (circuit breaker tripped)")
                 continue
             try:
-                annotated = call_model_with_retry(sentence, slug, api_key)
+                annotated = call_model_with_retry(
+                    sentence, slug, api_key,
+                    provider=generator.get("provider"), api_model=generator.get("api_model"),
+                )
                 results.append(annotated)
                 consecutive_fail[slug] = 0
                 print(f"[{call_count}/{total_calls}] ok   model={slug}  "
