@@ -76,5 +76,33 @@
       "allow_fallbacks": true
     },
     "_provider_note": "same StreamLake discount as the stage_a deepseek-v4-flash generator entry"
+  },
+  "sourcing_agent_model": {
+    "slug": "deepseek/deepseek-v4-flash",
+    "notes": "Added 2026-09-20 for the Sourcing Agent (agents_source.py) -- turns raw StackExchange search results into SourcedCandidate objects (extracting the RU-EN pair + the human's own nuance commentary from a Q&A thread). Reused deepseek-v4-flash for the same reason seed_generator_model does: this is extraction/selection, not judgment, so the cheapest reliable model is fine.",
+    "provider": {
+      "order": [
+        "streamlake"
+      ],
+      "allow_fallbacks": true
+    },
+    "_provider_note": "same StreamLake discount as the other deepseek-v4-flash entries"
+  },
+  "detection_agent_model": {
+    "slug": "deepseek/deepseek-v4-flash",
+    "notes": "Added 2026-09-20 for the Detection Agent (called from agents_annotate.py) -- decides worth_annotating from flag_ru_address_pronoun/lookup_idiom tool evidence. A gating decision, not a nuance judgment, so it shares the cheap model seed_generator_model and sourcing_agent_model use rather than a quality-tier model.",
+    "provider": {
+      "order": [
+        "streamlake"
+      ],
+      "allow_fallbacks": true
+    },
+    "_provider_note": "same StreamLake discount as the other deepseek-v4-flash entries"
+  },
+  "guideline_agent_model": {
+    "slug": "google/gemini-3.8-flash",
+    "notes": "Added 2026-09-20 for the Guideline Agent (agents_guideline.py) -- synthesizes a new calibration rule from a cluster of disagreement examples, the one role in this roster that most resembles what Claude did ad hoc during Cowork verification sessions. Given a full quality-tier model rather than a budget one because a bad calibration rule silently mis-labels every future batch until caught, unlike a single bad translation candidate that gets outvoted.",
+    "api_model": "google/gemini-3.8-flash:floor",
+    "_provider_note": ":floor requests Google's Flex service tier -- same discount as the stage_a_generators gemini-3.8-flash entry"
   }
 }

@@ -1,0 +1,54 @@
+{
+  "_comment": "Starter RU<->EN idiom lexicon for the Detection Agent's idiom_lookup tool (agents/tools.py). Seeded 2026-09-20 from idioms that actually appeared in stage_a/stage_b batch 1-3 data plus this session's calibration notes -- NOT exhaustive. Expand by appending entries as new idioms turn up in future batches; each entry's 'literal_survives' field records the batch-3 finding that some idioms carry their full charge through a literal/direct translation (so has_subtext should be false) while others genuinely need the idiomatic gloss (has_subtext true). See config/calibration_guidelines.md for the full reasoning behind literal_survives.",
+  "entries": [
+    {
+      "ru": "какого чёрта",
+      "literal_en": "what the devil / what the hell (literal)",
+      "idiomatic_en": "what the hell",
+      "literal_survives": true,
+      "note": "Batch 3 calibration: exasperated-anger charge carries through direct translation -- has_subtext=false even with informal address alongside it."
+    },
+    {
+      "ru": "совсем сдурел",
+      "literal_en": "completely went stupid",
+      "idiomatic_en": "out of your mind",
+      "literal_survives": true,
+      "note": "Same pattern as какого чёрта -- direct idiomatic translation preserves the charge."
+    },
+    {
+      "ru": "должно было случиться",
+      "literal_en": "was supposed to happen",
+      "idiomatic_en": "was meant to happen",
+      "literal_survives": true,
+      "note": "Resigned-fatalism idiom, survives direct translation per batch 3 calibration."
+    },
+    {
+      "ru": "смириться",
+      "literal_en": "to reconcile oneself",
+      "idiomatic_en": "to live with it / come to terms with it",
+      "literal_survives": true,
+      "note": "Resigned-fatalism idiom, survives direct translation per batch 3 calibration."
+    },
+    {
+      "ru": "кажется, дождь собирается",
+      "literal_en": "it seems rain is gathering",
+      "idiomatic_en": "looks like it's going to rain",
+      "literal_survives": true,
+      "note": "Plain weather idiom. Batch 1: a model's claim this alluded to Winnie-the-Pooh was rejected as unverified/fabricated -- kept here as a reminder to distrust unverified cultural-reference claims from generators."
+    },
+    {
+      "ru": "не самый плохой вариант",
+      "literal_en": "not the worst option (literal)",
+      "idiomatic_en": "not the worst option",
+      "literal_survives": true,
+      "note": "Litotes -- survives direct/literal translation intact (batch 2 calibration: 'not the worst option' pattern)."
+    },
+    {
+      "ru": "обращайтесь ко мне на «ты»",
+      "literal_en": "address me using informal-you",
+      "idiomatic_en": "please, call me [informal] / drop the formalities",
+      "literal_survives": false,
+      "note": "Batch 3: a sentence *about* the ty/vy distinction itself is one of the clearest genuine has_subtext=true idiom/formality cases -- the Russian pronoun choice has no English lexical equivalent and must be glossed, not just translated."
+    }
+  ]
+}

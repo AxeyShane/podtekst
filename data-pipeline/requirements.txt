@@ -1,1 +1,5 @@
 requests>=2.31.0
+python-dotenv>=1.0.0
+crewai>=1.15.0
+pymorphy2>=0.9.1
+pymorphy2-dicts-ru>=2.4
