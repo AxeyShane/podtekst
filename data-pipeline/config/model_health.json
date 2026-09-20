@@ -1,0 +1,25 @@
+{
+  "deepseek/deepseek-v4-flash": {
+    "consecutive_bad_runs": 0,
+    "disabled": false
+  },
+  "mistralai/mistral-small-2603": {
+    "consecutive_bad_runs": 2,
+    "disabled": true,
+    "last_bad_run": "stage_a_batch4.jsonl",
+    "last_failure_rate": 0.6310679611650486,
+    "disabled_reason": "tripped the circuit breaker in 2 consecutive runs (last: stage_a_batch4.jsonl)"
+  },
+  "google/gemini-3.1-flash-lite": {
+    "consecutive_bad_runs": 1,
+    "disabled": false,
+    "last_bad_run": "stage_a_batch4.jsonl",
+    "last_failure_rate": 0.027586206896551724
+  },
+  "google/gemini-3.8-flash": {
+    "consecutive_bad_runs": 1,
+    "disabled": false,
+    "last_bad_run": "stage_a_batch4.jsonl",
+    "last_failure_rate": 0.036036036036036036
+  }
+}

@@ -202,17 +202,36 @@ def main():
             auto_count += 1
             print(f"  auto-resolved ({fraction:.0%} agree): {source_text[:60]}")
         except Exception as e:
+            # The verdict is already settled (every valid candidate agreed) -- only the
+            # polish/pick call to the prefilter model failed (rate limit, bad JSON, etc).
+            # Falling through to the Cowork queue here would waste a human verification
+            # slot on something that was never actually contested, so instead fall back to
+            # the first agreeing candidate's translation/nuance_note verbatim, unpolished.
             error_count += 1
-            print(f"  FAILED to auto-resolve, falling back to Cowork queue: {source_text[:60]}: {e}")
-            needs_cowork.extend(cands)
+            fallback = agreeing[0]
+            resolved.append({
+                "source_lang": cands[0]["source_lang"],
+                "source_text": source_text,
+                "translation": fallback["translation"],
+                "has_subtext": has_subtext,
+                "category": category,
+                "nuance_note": fallback.get("nuance_note", ""),
+                "_stage_b_verification": "auto_resolved_prefilter_fallback_unpolished",
+                "_stage_b_prefilter_model": model_slug,
+                "_stage_b_candidate_count": len(valid),
+                "_stage_b_agreement_fraction": fraction,
+                "_stage_b_prefilter_error": str(e)[:200],
+            })
+            auto_count += 1
+            print(f"  auto-resolved via unpolished fallback (prefilter call failed: {e}): {source_text[:60]}")
         time.sleep(args.sleep)
 
     write_jsonl(args.resolved, resolved)
     write_jsonl(args.needs_cowork, needs_cowork)
 
-    print(f"\nDone. {len(groups)} sentences: {auto_count} auto-resolved, "
-          f"{contested_count} contested, {error_count} pre-filter call failures "
-          f"(both of the last two go to {args.needs_cowork}).")
+    print(f"\nDone. {len(groups)} sentences: {auto_count} auto-resolved "
+          f"({error_count} of those via unpolished fallback after a prefilter call error), "
+          f"{contested_count} genuinely contested -> {args.needs_cowork}.")
     print(f"Cowork workload: {len({r['source_text'] for r in needs_cowork})} sentences "
           f"(down from {len(groups)}).")
     print("Reminder: auto-resolved rows still need to appear in the human calibration sample "
