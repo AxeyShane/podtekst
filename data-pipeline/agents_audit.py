@@ -10,6 +10,11 @@ itself is local-only and IS verified -- tested against the real batch 1-3
 data during this build (487 rows, category counts matched the known totals
 exactly). Only the LLM recommendation step needs a live OpenRouter call.
 
+COST NOTE (2026-09-20 revision): dataset_category_stats runs here in Python
+before the agent is called -- this script already has the file paths from
+its own CLI args, so there was never a reason to make the LLM decide to call
+that tool itself. One LLM call for the whole audit, not two.
+
 Usage:
     export OPENROUTER_API_KEY=sk-or-...
     python agents_audit.py --in stage_b_batch1.jsonl stage_b_batch2.jsonl \
@@ -25,6 +30,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from agents.agent_defs import build_auditor_agent  # noqa: E402
 from agents.schemas import CoverageReport  # noqa: E402
+from agents.tools import dataset_category_stats  # noqa: E402
 
 
 def main():
@@ -33,19 +39,20 @@ def main():
     ap.add_argument("--out", required=True)
     args = ap.parse_args()
 
-    auditor_agent = build_auditor_agent()
-    paths_json = json.dumps(args.infiles)
-
     print(f"Auditing {len(args.infiles)} file(s): {', '.join(args.infiles)}")
+    stats = json.loads(dataset_category_stats.run(
+        stage_b_jsonl_paths_json=json.dumps(args.infiles)
+    ))
+
+    auditor_agent = build_auditor_agent()
     output = auditor_agent.kickoff(
         messages=(
-            f"Call dataset_category_stats with stage_b_jsonl_paths_json={paths_json!r}. "
-            "Using the result, fill in total_rows, category_counts, and "
-            "has_subtext_true_ratio directly from the tool's numbers (don't recompute or "
-            "estimate). Pass near_duplicate_clusters through as-is. Then use your own "
-            "judgment to name underrepresented_patterns (categories or sub-patterns that "
-            "look thin relative to the others) and write a specific recommendation for what "
-            "the next batch's seed generation should target."
+            f"Real, already-computed dataset stats:\n{json.dumps(stats, ensure_ascii=False, indent=2)}\n\n"
+            "Fill in total_rows, category_counts, has_subtext_true_ratio, and "
+            "near_duplicate_clusters directly from these numbers -- don't recompute or "
+            "estimate. Then use your own judgment to name underrepresented_patterns "
+            "(categories or sub-patterns that look thin relative to the others) and write a "
+            "specific recommendation for what the next batch's seed generation should target."
         ),
         response_format=CoverageReport,
     )

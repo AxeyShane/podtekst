@@ -11,6 +11,13 @@ first, from a real terminal with OPENROUTER_API_KEY set, and compare its
 output against a run_batch.py run on the same seeds before trusting it at
 volume.
 
+COST NOTE (2026-09-20 revision): all tool evidence (address-pronoun
+detection, idiom lookup, calibration guidelines text) is pre-computed here in
+Python and embedded directly in each agent's prompt -- the agents themselves
+carry no CrewAI tools anymore, so each kickoff() is exactly one LLM call
+instead of the up-to-three a tool-deciding agent costs. Guidelines are read
+ONCE per run (they don't change mid-batch), not once per sentence.
+
 Usage:
     export OPENROUTER_API_KEY=sk-or-...
     python agents_annotate.py --seeds seeds_batch6.txt --limit 5 \
@@ -19,12 +26,15 @@ Usage:
         --out-skipped stage_agents_batch6_skipped.jsonl
 
 Per sentence:
-  1. Detection Agent decides worth_annotating (rule-grounded, cheap model).
-     False -> logged to --out-skipped, nothing else runs for this sentence.
+  1. Detection Agent decides worth_annotating from pre-fetched tool evidence
+     (cheap model, one call). False -> logged to --out-skipped, nothing else
+     runs for this sentence.
   2. All active Annotator Agents judge it independently and concurrently
-     (asyncio, real parallelism -- not sequential calls).
-  3. Adjudicator Agent reads all Annotator outputs + calibration_guidelines.md
-     and produces one verdict: unanimous / majority_vote / escalated_needs_human.
+     (asyncio, real parallelism), each with the pre-fetched idiom evidence +
+     guidelines text already in its prompt.
+  3. Adjudicator Agent reads all Annotator outputs + the same pre-fetched
+     guidelines text and produces one verdict: unanimous / majority_vote /
+     escalated_needs_human.
 
 Output schemas: agents/schemas.py's AnnotationResult (candidates) and
 AdjudicationResult (adjudicated). escalated_needs_human rows still get
@@ -46,6 +56,7 @@ from agents.agent_defs import (  # noqa: E402
     build_detection_agent,
 )
 from agents.schemas import AdjudicationResult, AnnotationResult, DetectionVerdict  # noqa: E402
+from agents.tools import flag_ru_address_pronoun, lookup_idiom, read_calibration_guidelines  # noqa: E402
 
 
 def load_seeds(path: str, limit: int | None) -> list[str]:
@@ -54,30 +65,47 @@ def load_seeds(path: str, limit: int | None) -> list[str]:
     return seeds[:limit] if limit else seeds
 
 
+def gather_detection_evidence(sentence: str) -> dict:
+    """Runs the free local tools once per sentence -- no LLM call, no CrewAI
+    tool-decision round-trip. Their combined output is what used to cost the
+    Detection Agent up to two extra LLM calls to fetch for itself."""
+
+    pronoun = json.loads(flag_ru_address_pronoun.run(source_text=sentence))
+    idiom = json.loads(lookup_idiom.run(phrase_or_source_text=sentence))
+    return {"pronoun_evidence": pronoun, "idiom_evidence": idiom}
+
+
 def detect(detection_agent, sentence: str) -> DetectionVerdict:
+    evidence = gather_detection_evidence(sentence)
     output = detection_agent.kickoff(
         messages=(
             f"Candidate source sentence: {sentence!r}\n\n"
-            "Call flag_ru_address_pronoun and lookup_idiom on this sentence (or on the "
-            "phrase, for lookup_idiom) before deciding. Then decide worth_annotating: "
-            "false only if neither tool found anything AND you see no plausible sarcasm/"
+            f"Pre-fetched tool evidence:\n{json.dumps(evidence, ensure_ascii=False, indent=2)}\n\n"
+            "Decide worth_annotating from this evidence plus your own read of the sentence: "
+            "false only if neither check found anything AND you see no plausible sarcasm/"
             "emotional-subtext cue either -- when genuinely unsure, prefer true, since a "
             "false negative here silently drops a sentence from the dataset while a false "
-            "positive just costs a few cheap Annotator calls."
+            "positive just costs a few cheap Annotator calls. Put whichever evidence you "
+            "used in tool_evidence as short strings."
         ),
         response_format=DetectionVerdict,
     )
     return output.pydantic
 
 
-async def annotate_all(annotator_agents, sentence: str) -> list[AnnotationResult]:
+async def annotate_all(annotator_agents, sentence: str, guidelines_text: str) -> list[AnnotationResult]:
+    idiom_evidence = json.loads(lookup_idiom.run(phrase_or_source_text=sentence))
     prompt = (
         f"Sentence: {sentence!r}\n\n"
-        "Call read_calibration_guidelines first. If this looks like it might contain an "
-        "idiom, call lookup_idiom to check whether it's a known entry (and whether its "
-        "'literal_survives' flag means has_subtext should actually be false). Then decide: "
-        "does this carry has_subtext, which category, what's the best translation, and a "
-        "nuance_note under ~20 words (empty string if has_subtext is false)."
+        f"Current calibration guidelines (apply these, don't just recite them):\n"
+        f"{guidelines_text}\n\n"
+        f"Idiom lexicon check for this sentence:\n"
+        f"{json.dumps(idiom_evidence, ensure_ascii=False)}\n\n"
+        "Decide: does this carry has_subtext, which category, what's the best translation, "
+        "and a nuance_note under ~20 words (empty string if has_subtext is false). If the "
+        "idiom lexicon matched and its literal_survives is true, that idiom's charge "
+        "survives direct translation -- has_subtext should usually be false for it per the "
+        "guidelines above, not true just because it's technically an idiom."
     )
     tasks = [
         agent.kickoff_async(messages=prompt, response_format=AnnotationResult)
@@ -93,22 +121,22 @@ async def annotate_all(annotator_agents, sentence: str) -> list[AnnotationResult
     return results
 
 
-def adjudicate(adjudicator_agent, sentence: str,
-                candidates: list[AnnotationResult]) -> AdjudicationResult:
+def adjudicate(adjudicator_agent, sentence: str, candidates: list[AnnotationResult],
+                guidelines_text: str) -> AdjudicationResult:
     candidates_json = json.dumps([c.model_dump() for c in candidates], ensure_ascii=False, indent=2)
     output = adjudicator_agent.kickoff(
         messages=(
             f"Sentence: {sentence!r}\n\n"
             f"Independent Annotator Agent outputs for this sentence:\n{candidates_json}\n\n"
-            "Call read_calibration_guidelines first. If every candidate agrees on both "
-            "has_subtext and category, resolution='unanimous' -- pick/polish the best "
-            "translation among them. If they disagree, apply the calibration guidelines "
-            "to decide (a guideline-backed minority can outweigh an unexplained majority); "
-            "set resolution='majority_vote' if you can confidently resolve it this way, or "
-            "resolution='escalated_needs_human' if the guidelines don't clearly settle it "
-            "-- an honest escalation beats a forced guess. Set agreement_ratio to the "
-            "fraction of candidates that agreed with your final has_subtext+category. List "
-            "dissenting_agents by role."
+            f"Current calibration guidelines (apply these to break ties):\n{guidelines_text}\n\n"
+            "If every candidate agrees on both has_subtext and category, "
+            "resolution='unanimous' -- pick/polish the best translation among them. If they "
+            "disagree, apply the calibration guidelines to decide (a guideline-backed "
+            "minority can outweigh an unexplained majority); set resolution='majority_vote' "
+            "if you can confidently resolve it this way, or resolution='escalated_needs_human' "
+            "if the guidelines don't clearly settle it -- an honest escalation beats a forced "
+            "guess. Set agreement_ratio to the fraction of candidates that agreed with your "
+            "final has_subtext+category. List dissenting_agents by role."
         ),
         response_format=AdjudicationResult,
     )
@@ -129,11 +157,17 @@ def main():
     seeds = load_seeds(args.seeds, args.limit)
     print(f"Loaded {len(seeds)} seed(s) from {args.seeds}")
 
+    # Read once for the whole run, not once per sentence -- the guidelines file
+    # doesn't change mid-batch, so re-reading it per sentence would just be
+    # burning prompt tokens (and, before this revision, an extra tool call)
+    # for text that's identical every time.
+    guidelines_text = read_calibration_guidelines.run()
+
     detection_agent = build_detection_agent()
     annotator_agents = build_annotator_agents()
     adjudicator_agent = build_adjudicator_agent()
     print(f"Built 1 Detection Agent, {len(annotator_agents)} Annotator Agents, "
-          f"1 Adjudicator Agent.")
+          f"1 Adjudicator Agent (all tool-free -- evidence is pre-fetched per sentence).")
 
     adjudicated, candidates, skipped = [], [], []
 
@@ -152,7 +186,7 @@ def main():
             continue
 
         print(f"  Detection: worth annotating (candidates: {verdict.candidate_categories})")
-        results = asyncio.run(annotate_all(annotator_agents, sentence))
+        results = asyncio.run(annotate_all(annotator_agents, sentence, guidelines_text))
         if not results:
             print("  ! All Annotator Agents failed for this sentence -- skipping adjudication",
                   file=sys.stderr)
@@ -162,7 +196,7 @@ def main():
         print(f"  {len(results)} Annotator outputs collected")
 
         try:
-            verdict_result = adjudicate(adjudicator_agent, sentence, results)
+            verdict_result = adjudicate(adjudicator_agent, sentence, results, guidelines_text)
         except Exception as e:
             print(f"  ! Adjudicator Agent failed: {e}", file=sys.stderr)
             skipped.append({"source_text": sentence, "reason": f"adjudicator_error: {e}"})

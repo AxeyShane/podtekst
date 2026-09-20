@@ -12,6 +12,15 @@ escalated rows works as input.
 EXPERIMENTAL, UNTESTED LIVE (OpenRouter unreachable from device_bash, see
 agents_annotate.py's header for the full explanation).
 
+COST NOTE (2026-09-20 revision): the guidelines file is read once here in
+Python, not handed to the agent as a tool it might call. The actual write
+(propose_guideline_update) is ALSO only ever called from this script, never
+by the agent -- the agent's job is only to produce a structured
+GuidelineProposal; whether to write it is this script's decision, gated on
+direction != 'clarify_only'. Earlier versions gave the agent the write tool
+directly, which risked a double-write (once from the agent, once from this
+script re-applying the same result) -- caught and removed in this revision.
+
 Usage:
     export OPENROUTER_API_KEY=sk-or-...
     python agents_guideline.py --in stage_agents_batch6.jsonl \
@@ -32,6 +41,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from agents.agent_defs import build_guideline_agent  # noqa: E402
 from agents.schemas import GuidelineProposal  # noqa: E402
+from agents.tools import propose_guideline_update, read_calibration_guidelines  # noqa: E402
 
 
 def load_rows(path: str) -> list[dict]:
@@ -69,6 +79,7 @@ def main():
           f"disagreement signal, across {len(clusters)} categories.")
 
     guideline_agent = build_guideline_agent()
+    guidelines_text = read_calibration_guidelines.run()  # once for the whole run
     proposals = []
 
     for category, cluster_rows in clusters.items():
@@ -85,21 +96,22 @@ def main():
         try:
             output = guideline_agent.kickoff(
                 messages=(
-                    f"Category: {category}\n\n{len(cluster_rows)} sentences where the "
-                    f"Annotator Agents disagreed or the Adjudicator escalated:\n{examples}\n\n"
-                    "Call read_calibration_guidelines first -- don't propose a rule that "
-                    "duplicates an existing one. If these examples share a real pattern "
-                    "(not just 'these are hard'), propose a specific, generalizable rule in "
-                    "the same style as the existing numbered rules. If they don't share a "
-                    "clear pattern, say so honestly instead of forcing a rule -- return "
-                    "direction='clarify_only' with proposed_rule explaining why no rule "
-                    "fits yet, rather than inventing one."
+                    f"Category: {category}\n\n"
+                    f"Current calibration guidelines (don't propose a duplicate of an "
+                    f"existing rule):\n{guidelines_text}\n\n"
+                    f"{len(cluster_rows)} sentences where the Annotator Agents disagreed or "
+                    f"the Adjudicator escalated:\n{examples}\n\n"
+                    "If these examples share a real pattern (not just 'these are hard'), "
+                    "propose a specific, generalizable rule in the same style as the "
+                    "existing numbered rules. If they don't share a clear pattern, say so "
+                    "honestly instead of forcing a rule -- return direction='clarify_only' "
+                    "with proposed_rule explaining why no rule fits yet, rather than "
+                    "inventing one."
                 ),
                 response_format=GuidelineProposal,
             )
             proposal = output.pydantic
             if proposal.direction != "clarify_only":
-                from agents.tools import propose_guideline_update
                 propose_guideline_update.run(
                     pattern_description=proposal.pattern_description,
                     proposed_rule=proposal.proposed_rule,
