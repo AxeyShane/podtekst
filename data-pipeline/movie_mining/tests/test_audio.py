@@ -3,6 +3,7 @@ Diarization itself is faked with a hand-written segments.json."""
 import json
 import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -93,7 +94,18 @@ if __name__ == "__main__":
     unittest.main()
 
 
+class DemucsTests(unittest.TestCase):
+    def test_runs_in_current_interpreter(self):
+        # A bare "python" resolves to whatever is first on PATH, which may lack demucs.
+        from unittest import mock
+        with mock.patch.object(extract_dialogue, "_run") as run:
+            extract_dialogue.extract_demucs(Path("film.m4a"), 0, Path("out"), None)
+        demucs = next(c.args[0] for c in run.call_args_list if "demucs" in c.args[0])
+        self.assertEqual(demucs[:3], [sys.executable, "-m", "demucs"])
+
+
 class WhisperTests(unittest.TestCase):
+    @unittest.skipIf(sys.platform == "win32", "fake whisper-cli is a POSIX shell script")
     def test_command_and_fallback(self):
         import os
         import stat
@@ -108,7 +120,8 @@ class WhisperTests(unittest.TestCase):
             # fake whisper-cli: writes <-of>.srt like the real one
             fake = tmp / "whisper-cli"
             fake.write_text('#!/bin/sh\nwhile [ "$1" ]; do [ "$1" = "-of" ] && out="$2"; shift; done\n'
-                            'printf "1\\n00:00:01,000 --> 00:00:03,000\\nТы где был?\\n" > "$out.srt"\n')
+                            'printf "1\\n00:00:01,000 --> 00:00:03,000\\nТы где был?\\n" > "$out.srt"\n',
+                            encoding="utf-8")
             fake.chmod(fake.stat().st_mode | stat.S_IEXEC)
             wd = tmp / "work"
             wd.mkdir()
@@ -146,7 +159,8 @@ class GigaAMTests(unittest.TestCase):
             wd = Path(d)
             rows = [{"clip": "clips/a.wav", "ru_text": "Ты где был?", "ru_text_source": "human_subs"},
                     {"clip": "clips/b.wav", "ru_text": "", "ru_text_source": None}]
-            (wd / "manifest.jsonl").write_text("\n".join(json.dumps(r, ensure_ascii=False) for r in rows))
+            (wd / "manifest.jsonl").write_text("\n".join(json.dumps(r, ensure_ascii=False) for r in rows),
+                                                  encoding="utf-8")
             self.assertEqual(transcribe.transcribe_clips(wd, FakeASR()), 1)
             out = [json.loads(l) for l in (wd / "manifest.jsonl").read_text(encoding="utf-8").splitlines()]
             self.assertEqual(out[0]["ru_text"], "Ты где был?")

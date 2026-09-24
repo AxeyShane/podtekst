@@ -24,6 +24,7 @@ import argparse
 import json
 import shutil
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
 
@@ -33,7 +34,8 @@ TEXT_SUB_CODECS = {"subrip", "ass", "ssa", "mov_text", "webvtt", "text"}
 
 
 def _run(cmd: list[str]) -> str:
-    res = subprocess.run(cmd, capture_output=True, text=True)
+    # Explicit UTF-8: Windows defaults to cp1252, and demucs/ffmpeg progress output isn't always decodable in it.
+    res = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace")
     if res.returncode != 0:
         raise RuntimeError(f"Command failed ({res.returncode}): {' '.join(cmd)}\n{res.stderr[-2000:]}")
     return res.stdout
@@ -79,7 +81,7 @@ def extract_demucs(src: Path, a_idx: int, out_dir: Path, device: str | None) -> 
         stereo = tmp / "mix.wav"
         _run(["ffmpeg", "-v", "error", "-y", "-i", str(src), "-map", f"0:a:{a_idx}", "-ac", "2", "-ar", "44100",
               str(stereo)])
-        cmd = ["python", "-m", "demucs", "--two-stems", "vocals", "-n", "htdemucs", "-o", str(tmp / "sep")]
+        cmd = [sys.executable, "-m", "demucs", "--two-stems", "vocals", "-n", "htdemucs", "-o", str(tmp / "sep")]
         if device:
             cmd += ["-d", device]
         _run(cmd + [str(stereo)])
