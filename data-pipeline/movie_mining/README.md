@@ -11,9 +11,8 @@ There are two tracks:
 | **Audio** | Your own film files + RU/EN subtitles | Clean single-speaker dialogue clips with subtitle text | ASR domain data and emotion2vec Russian validation (Phase 7) |
 
 **Rights:** mined lines, audio and clips hold verbatim film dialogue. They stay
-in the media root (default `raw-media/`, or `D:\podtekst-mm\media`),
-`movie_mining/out/` and `seeds_subs_*.txt`, which are all outside git or
-gitignored. Never commit or share them.
+in the media root (default `raw-media/`, or `D:\podtekst-mm\media`), which is
+outside git or gitignored. Never commit or share them.
 
 Run every command from `data-pipeline/`.
 
@@ -38,20 +37,28 @@ caches and media all go to `D:\podtekst-mm` instead. Force either drive with
 `-Drive C` / `-Drive D`. The locations are saved as user environment variables
 (`PODTEKST_MEDIA_ROOT`, `HF_HOME`, `TORCH_HOME`), so every script finds them.
 Big files live under the **media root** (`paths.py`): `opensubtitles/`,
-`films/`, and `work/<film>/`.
+`films/`, `work/<film>/`, and `mining/`.
+
+whisper.cpp is optional (only `--asr whisper` uses it). Setup takes the newest
+release that ships a Windows x64 zip and just warns if there is none.
 
 ## Text track
 
 ```powershell
-python -m movie_mining.mine_subtitles --name subs1 --max-lines 3000000   # quick trial
-python -m movie_mining.mine_subtitles --name subs2                        # whole corpus
+python -m movie_mining.mine_subtitles --name subs1 --max-lines 3000000              # quick trial
+python -m movie_mining.mine_subtitles --name subs2 --max-lines 3000000 --origin ru  # Russian-origin films only
 ```
 
 The miner works in five steps:
 
+0. **Origin (optional, `--origin ru`).** Keep only films whose original
+   language is Russian. The OPUS film id is the IMDb number; Wikidata maps it
+   (P345 → P364). Answers are cached in `opensubtitles/film_lang.json`. Films
+   Wikidata doesn't know, or without a language (many TV episodes), are dropped.
 1. **Clean and filter.** Strip markup, drop credits, multi-speaker cues and
-   duplicates, and keep lines of 3–25 words. The pool is sampled evenly
-   across the corpus.
+   duplicates, and keep lines of 3–25 words. Drop broken Russian: more than one
+   word unknown to the pymorphy dictionary, or a doubled capital like «Мможет».
+   The pool is sampled evenly across the corpus.
 2. **Check alignment.** A LaBSE cosine of at least 0.75 between RU and EN
    confirms the pair really is a translation; OpenSubtitles alignment is noisy.
 3. **Literal MT.** Translate the source with `opus-mt` in the chosen
@@ -61,16 +68,19 @@ The miner works in five steps:
    words inside an otherwise literal line (a local, idiom-sized swap). LaBSE
    also has to agree that the literal and human lines still mean the same
    thing, which drops real mistranslations.
-5. **Rank.** Order by alignment × divergence, with small boosts for ты/вы
-   address and idiom-lexicon hits. Cap each film at 15 candidates.
+5. **Rank.** Order by alignment × divergence, with a small boost for
+   idiom-lexicon hits, in two buckets. English "you" makes every ты/вы line
+   diverge from a literal MT, so lines with ты/вы go to an `address` bucket
+   capped at 30% of the selection (`--address-share`); everything else is
+   `general`. Cap each film at 15 candidates.
 
-It writes three files:
+It writes three files to `<media root>/mining/` (`--out-dir` to change):
 
-- `movie_mining/out/subs_candidates_<name>.jsonl`: source, human translation,
-  literal MT, scores, film id
-- `movie_mining/out/subs_stats_<name>.json`: counts for each filter
+- `subs_candidates_<name>.jsonl`: source, human translation, literal MT,
+  scores, bucket, film id
+- `subs_stats_<name>.json`: counts for each filter and bucket
 - `seeds_subs_<name>.txt`: the top 500 source lines, ready for
-  `run_batch.py --seeds seeds_subs_<name>.txt`
+  `run_batch.py --seeds <media root>/mining/seeds_subs_<name>.txt`
 
 **These are candidates, not labels.** They go through the normal cycle:
 Stage A, checks, prefilter, Cowork, then calibration. A professional

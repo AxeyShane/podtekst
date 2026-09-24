@@ -8,7 +8,10 @@ pair is a *candidate* for idiom / register / sarcasm handling -- found in real
 dialogue, not generated.
 
 Pipeline (all local, GPU recommended):
-  1. Stream the OPUS zip, clean subtitle markup, cheap filters, dedupe,
+  0. Optional (--origin ru): keep only films whose original language is Russian
+     (IMDb id -> Wikidata P364, see origin.py).
+  1. Stream the OPUS zip, clean subtitle markup, cheap filters, a Russian
+     fluency check (pymorphy unknown words, doubled capitals), dedupe,
      reservoir-sample a pool spread across the whole corpus.
   2. LaBSE cosine(ru, en) >= --min-align  -> keeps only true translations
      (OpenSubtitles alignments are noisy).
@@ -16,14 +19,18 @@ Pipeline (all local, GPU recommended):
   4. Divergence: chrF(literal, human) <= --max-chrf (whole-line rewrite), or a
      replaced span of >= --min-span words inside an otherwise literal line
      (local idiom-sized swap).
-  5. Rank by alignment x divergence, small boosts for ты/вы and idiom-lexicon
-     hits, cap per film, write outputs.
+  5. Rank by alignment x divergence (small boost for idiom-lexicon hits) and
+     split into two buckets: "address" (the Russian line has ты/вы -- English
+     "you" makes these diverge trivially, so they'd flood the ranking) capped at
+     --address-share of the selection, and "general" for everything else.
+     Cap per film, write outputs.
 
-Outputs (all gitignored -- they contain verbatim subtitle dialogue):
-  movie_mining/out/subs_candidates_<name>.jsonl   full records + scores
-  movie_mining/out/subs_stats_<name>.json         filter/reject counts
-  seeds_subs_<name>.txt                           top source lines, ready for
-                                                  stage_a_generate.py / run_batch.py
+Outputs go to <media root>/mining/ (see paths.py) -- verbatim subtitle dialogue,
+kept off the repo:
+  subs_candidates_<name>.jsonl   full records + scores + bucket
+  subs_stats_<name>.json         filter/reject counts
+  seeds_subs_<name>.txt          top source lines, ready for
+                                 stage_a_generate.py / run_batch.py
 
 Candidates are NOT labels. They still go through the normal Stage A -> checks ->
 prefilter -> Cowork -> calibration cycle. The human subtitle is kept in the
@@ -43,12 +50,10 @@ from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Iterator
 
-from .cues import address_register, idiom_hits
+from .cues import address_register, idiom_hits, ru_fluency_issue
 from .text_utils import clean_line, film_id_from_ids_line, is_multi_speaker, normalize_key, pair_passes
 
-from .paths import OPENSUBS_ZIP as DEFAULT_ZIP, PIPELINE_DIR
-
-HERE = Path(__file__).resolve().parent
+from .paths import FILM_LANG_CACHE, MINING_DIR, OPENSUBS_ZIP as DEFAULT_ZIP
 
 LABSE = "sentence-transformers/LaBSE"
 MT_MODELS = {"ru-en": "Helsinki-NLP/opus-mt-ru-en", "en-ru": "Helsinki-NLP/opus-mt-en-ru"}
@@ -81,15 +86,19 @@ def iter_pairs(zip_path: Path, max_lines: int | None = None) -> Iterator[tuple[s
                 f.close()
 
 
-def collect_pool(pairs, pool_size: int, rng: random.Random, min_words: int, max_words: int):
+def collect_pool(pairs, pool_size: int, rng: random.Random, min_words: int, max_words: int,
+                 films: set[str] | None = None):
     """Filter + dedupe, then reservoir-sample so the pool spans the whole corpus
-    instead of only the first films in the file."""
+    instead of only the first films in the file. films: if given, only these film keys."""
     stats: Counter = Counter()
     seen: set[str] = set()
     pool: list[dict] = []
     kept = 0
     for ru_raw, en_raw, film in pairs:
         stats["read"] += 1
+        if films is not None and film not in films:
+            stats["reject_origin"] += 1
+            continue
         if is_multi_speaker(ru_raw) or is_multi_speaker(en_raw):
             stats["reject_multi_speaker"] += 1
             continue
@@ -103,6 +112,10 @@ def collect_pool(pairs, pool_size: int, rng: random.Random, min_words: int, max_
             stats["reject_duplicate"] += 1
             continue
         seen.add(key)
+        issue = ru_fluency_issue(ru)            # after dedupe: each distinct line is checked once
+        if issue:
+            stats[f"reject_fluency_{issue}"] += 1
+            continue
         rec = {"ru": ru, "en": en, "film": film}
         kept += 1
         if len(pool) < pool_size:
@@ -256,24 +269,31 @@ def rank(candidates: list[dict], min_sem: float) -> list[dict]:
         c["address"] = address_register(c["ru"])
         c["idioms"] = idiom_hits(c["ru"])
         divergence = max((100.0 - c["chrf_literal_vs_human"]) / 100.0, c.get("novelty", 0.0))
-        boost = (0.1 if c["address"] else 0.0) + 0.1 * min(2, len(c["idioms"]))
-        c["score"] = round(c["align_cos"] * divergence + boost, 4)
+        c["score"] = round(c["align_cos"] * divergence + 0.1 * min(2, len(c["idioms"])), 4)
+        c["bucket"] = "address" if c["address"] else "general"
         ranked.append(c)
     ranked.sort(key=lambda c: c["score"], reverse=True)
     return ranked
 
 
-def select(ranked: list[dict], target: int, max_per_film: int) -> list[dict]:
-    """Top-N with a per-film cap so one talky film can't dominate, and one
-    record per source line (a pair can qualify in both directions)."""
+def select(ranked: list[dict], target: int, max_per_film: int, address_share: float = 0.3) -> list[dict]:
+    """Top-N with a per-film cap so one talky film can't dominate, one record per
+    source line (a pair can qualify in both directions), and the ты/вы bucket held
+    to address_share of the target. The rest is not back-filled with ты/вы lines."""
     per_film: dict = defaultdict(int)
     seen_src: set[str] = set()
+    max_address = int(target * address_share)
+    n_address = 0
     out = []
     for c in ranked:
         film = c.get("film") or "unknown"
         src = normalize_key(c["source"])
         if per_film[film] >= max_per_film or src in seen_src:
             continue
+        if c.get("bucket") == "address":
+            if n_address >= max_address:
+                continue
+            n_address += 1
         per_film[film] += 1
         seen_src.add(src)
         out.append(c)
@@ -292,6 +312,8 @@ def write_outputs(selected: list[dict], stats: Counter, name: str, out_dir: Path
     stats = Counter(stats)
     stats["selected"] = len(selected)
     stats["by_direction"] = dict(Counter(c["direction"] for c in selected))
+    stats["by_bucket"] = dict(Counter(c.get("bucket") for c in selected))
+    stats["by_bucket_direction"] = dict(Counter(f"{c.get('bucket')}/{c['direction']}" for c in selected))
     stats["with_address_pronoun"] = sum(1 for c in selected if c.get("address"))
     stats["with_idiom_hit"] = sum(1 for c in selected if c.get("idioms"))
     (out_dir / f"subs_stats_{name}.json").write_text(json.dumps(dict(stats), ensure_ascii=False, indent=2),
@@ -322,6 +344,11 @@ def main() -> None:
                     help="chrF ceiling for local swaps (above this the lines are near-identical)")
     ap.add_argument("--min-sem", type=float, default=0.70, help="LaBSE literal/human cosine floor (drops meaning changes)")
     ap.add_argument("--max-per-film", type=int, default=15)
+    ap.add_argument("--address-share", type=float, default=0.3,
+                    help="Max fraction of the selection from the ты/вы bucket")
+    ap.add_argument("--origin", choices=["any", "ru"], default="any",
+                    help="ru: only films whose original language is Russian (Wikidata, cached)")
+    ap.add_argument("--out-dir", type=Path, default=MINING_DIR, help="Where candidates, stats and seeds go")
     ap.add_argument("--device", default=None, help="cuda / cpu (default: cuda if available)")
     ap.add_argument("--batch-size", type=int, default=64)
     ap.add_argument("--beams", type=int, default=2)
@@ -340,9 +367,17 @@ def main() -> None:
         device = "cuda" if torch.cuda.is_available() else "cpu"
     print(f"Device: {device}")
 
+    films, origin_stats = None, {}
+    if args.origin == "ru":
+        from . import origin
+        t = time.time()
+        films, origin_stats = origin.films_with_origin(origin.film_keys(args.zip, args.max_lines), FILM_LANG_CACHE)
+        print(f"Origin ru: {origin_stats} ({time.time() - t:.0f}s)")
+
     t = time.time()
     pool, stats = collect_pool(iter_pairs(args.zip, args.max_lines), args.pool_size,
-                               random.Random(args.seed), args.min_words, args.max_words)
+                               random.Random(args.seed), args.min_words, args.max_words, films=films)
+    stats.update(origin_stats)
     print(f"Read {stats['read']:,} lines, {stats['passed_filters']:,} passed filters, "
           f"pool {len(pool):,} ({time.time() - t:.0f}s)")
 
@@ -351,8 +386,8 @@ def main() -> None:
                                 args.min_span, args.max_chrf_local)
     stats.update(s2)
     ranked = rank(candidates, args.min_sem)
-    selected = select(ranked, args.target, args.max_per_film)
-    write_outputs(selected, stats, args.name, HERE / "out", PIPELINE_DIR / f"seeds_subs_{args.name}.txt",
+    selected = select(ranked, args.target, args.max_per_film, args.address_share)
+    write_outputs(selected, stats, args.name, args.out_dir, args.out_dir / f"seeds_subs_{args.name}.txt",
                   args.seed_count)
 
 

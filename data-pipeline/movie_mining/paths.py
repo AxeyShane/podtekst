@@ -16,3 +16,5 @@ MEDIA_ROOT = Path(os.environ.get("PODTEKST_MEDIA_ROOT") or PIPELINE_DIR / "raw-m
 OPENSUBS_ZIP = MEDIA_ROOT / "opensubtitles" / "en-ru.txt.zip"
 FILMS_DIR = MEDIA_ROOT / "films"
 WORK_ROOT = MEDIA_ROOT / "work"
+MINING_DIR = MEDIA_ROOT / "mining"          # mined candidates, stats and seeds (verbatim dialogue)
+FILM_LANG_CACHE = MEDIA_ROOT / "opensubtitles" / "film_lang.json"

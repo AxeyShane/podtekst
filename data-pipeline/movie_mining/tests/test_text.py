@@ -10,8 +10,8 @@ from pathlib import Path
 
 import numpy as np
 
-from movie_mining import mine_subtitles as ms
-from movie_mining.cues import address_register, idiom_hits
+from movie_mining import mine_subtitles as ms, origin
+from movie_mining.cues import _morph, address_register, idiom_hits, ru_fluency_issue
 from movie_mining.text_utils import clean_line, film_id_from_ids_line, is_multi_speaker, pair_passes
 
 RU = [
@@ -113,8 +113,50 @@ class TextTests(unittest.TestCase):
             ms.write_outputs(sel, stats, "t", tmp / "out", seeds, seed_count=5)
             self.assertEqual(seeds.read_text(encoding="utf-8").splitlines()[0], sel[0]["source"])
             rec = json.loads((tmp / "out" / "subs_candidates_t.jsonl").read_text(encoding="utf-8").splitlines()[0])
-            for key in ("human_translation", "literal_mt", "chrf_literal_vs_human", "score", "film"):
+            for key in ("human_translation", "literal_mt", "chrf_literal_vs_human", "score", "film", "bucket"):
                 self.assertIn(key, rec)
+
+    @unittest.skipUnless(_morph(), "pymorphy3 not installed")
+    def test_fluency(self):
+        self.assertEqual(ru_fluency_issue("Мможет я помогу?"), "doubled_capital")
+        self.assertIsNone(ru_fluency_issue("Ссора была глупой."))              # real word, doubled letter
+        self.assertIsNone(ru_fluency_issue("Вы знакомы с Даниелли?"))          # one unknown name is fine
+        self.assertEqual(ru_fluency_issue("Тудым-сюдым шмяк бдыщ"), "unknown_words")
+
+    def test_address_bucket_is_capped_and_unboosted(self):
+        def cand(i, ru, chrf):
+            return {"ru": ru, "source": f"line {i}", "film": f"2001/{i}", "align_cos": 1.0,
+                    "chrf_literal_vs_human": chrf, "novelty": 0.0}
+        cands = [cand(i, "Ты где был вчера?", 10.0) for i in range(8)] + \
+                [cand(100 + i, "Идёт сильный дождь.", 20.0) for i in range(8)]
+        ranked = ms.rank(cands, min_sem=0.0)
+        self.assertEqual({c["bucket"] for c in ranked[:8]}, {"address"})          # higher divergence only
+        self.assertAlmostEqual(ranked[0]["score"], 0.9)                           # no ты/вы bonus
+        sel = ms.select(ranked, target=10, max_per_film=5, address_share=0.3)
+        self.assertEqual(sum(c["bucket"] == "address" for c in sel), 3)
+        self.assertEqual(sum(c["bucket"] == "general" for c in sel), 7)
+
+    def test_origin_filter(self):
+        self.assertEqual(origin.imdb_id("1979/79679"), "tt0079679")
+        calls = []
+
+        def fake_fetch(ids):
+            calls.append(list(ids))
+            return {"tt0000100": ["Q7737"], "tt0000101": ["Q1860"]}             # 102: unknown to Wikidata
+        with tempfile.TemporaryDirectory() as d:
+            tmp = Path(d)
+            z = make_zip(tmp)
+            keys = origin.film_keys(z)
+            self.assertEqual(keys, {"2001/100", "2001/101", "2001/102"})
+            cache = tmp / "film_lang.json"
+            keep, st = origin.films_with_origin(keys, cache, fetch=fake_fetch, log=lambda *_: None)
+            self.assertEqual(keep, {"2001/100"})
+            self.assertEqual(st["origin_films_with_language"], 2)
+            origin.films_with_origin(keys, cache, fetch=fake_fetch, log=lambda *_: None)
+            self.assertEqual(len(calls), 1)                                        # second run served from cache
+            pool, stats = ms.collect_pool(ms.iter_pairs(z), 100, random.Random(1), 3, 25, films=keep)
+            self.assertEqual(stats["reject_origin"], 4)
+            self.assertTrue(all(p["film"] == "2001/100" for p in pool))
 
 
 if __name__ == "__main__":

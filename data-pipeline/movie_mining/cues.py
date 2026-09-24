@@ -43,6 +43,31 @@ def address_register(ru: str) -> str | None:
     return "both" if len(found) == 2 else found.pop()
 
 
+@lru_cache(maxsize=200_000)
+def _known(tok: str) -> bool:
+    return _morph().word_is_known(tok)
+
+
+def _doubled_capital(tok: str) -> bool:
+    """«Мможет»: capital + same letter again, unknown as written but a word without the
+    first letter. Real words starting with a doubled letter (ссора, ввод) are known, so pass."""
+    return (len(tok) > 2 and tok[0].isupper() and tok[1] == tok[0].lower()
+            and not _known(tok.lower()) and _known(tok[1:]))
+
+
+def ru_fluency_issue(ru: str, max_unknown: int = 1) -> str | None:
+    """Cheap check for broken Russian (fan-sub typos, OCR junk, machine output).
+    Returns 'doubled_capital', 'unknown_words' (more than max_unknown Cyrillic tokens
+    missing from the pymorphy dictionary) or None. Needs pymorphy3 (returns None without it)."""
+    if _morph() is None:
+        return None
+    toks = _RU_TOKEN.findall(ru)
+    if any(_doubled_capital(t) for t in toks):
+        return "doubled_capital"
+    unknown = sum(1 for t in toks if not _known(t.lower()))
+    return "unknown_words" if unknown > max_unknown else None
+
+
 @lru_cache(maxsize=1)
 def _lexicon() -> list[str]:
     try:
