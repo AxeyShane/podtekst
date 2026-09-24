@@ -1,6 +1,19 @@
-"""Russian transcripts for audio that has no subtitles, via whisper.cpp.
+"""Russian transcripts for audio that has no subtitles: GigaAM v3 (default) or whisper.cpp.
 
-    python -m movie_mining.transcribe <media root>/work/<film>
+    python -m movie_mining.transcribe <media root>/work/<film>                  # GigaAM, after cut_clips
+    python -m movie_mining.transcribe <media root>/work/<film> --asr whisper    # whisper.cpp, before cut_clips
+
+GigaAM v3 (default, MIT, Russian-specialised; beats Whisper-large-v3 ~70:30 in
+the authors' side-by-side evals). The v3_e2e_rnnt variant outputs punctuated,
+normalised text. Its .transcribe() handles audio up to 25 s, and our clips are
+at most 12 s, so it runs per clip *after* cut_clips and fills the empty ru_text
+fields in manifest.jsonl. That avoids GigaAM's long-form mode, which needs
+pyannote plus a Hugging Face token. Caveat: GigaAM is also the ASR planned
+for the app, so its own transcripts can't be used to *evaluate* it; they're
+fine for clip text, seeds and emotion2vec checks.
+
+whisper.cpp (alternative) transcribes the whole dialogue stem *before*
+cut_clips into ru.whisper.srt, as described below.
 
 Runs whisper-cli on the cleaned dialogue.wav (already 16 kHz mono) and writes
 ru.whisper.srt next to it. cut_clips.py uses a human ru.srt when one exists,
@@ -32,6 +45,51 @@ VAD_REPO, VAD_FILE = "ggml-org/whisper-vad", "ggml-silero-v6.2.0.bin"
 MODELS = {"large-v3": "ggml-large-v3.bin", "large-v3-turbo": "ggml-large-v3-turbo.bin",
           "large-v3-turbo-q8": "ggml-large-v3-turbo-q8_0.bin", "medium": "ggml-medium.bin"}
 OUT_NAME = "ru.whisper.srt"
+
+
+GIGAAM_DEFAULT = "v3_e2e_rnnt"
+
+
+class GigaAM:
+    """Thin wrapper so tests can swap in a fake with the same .transcribe(path) method."""
+
+    def __init__(self, model_name: str = GIGAAM_DEFAULT, device: str | None = None):
+        import gigaam
+        kwargs = {"device": device} if device else {}
+        try:
+            self.model = gigaam.load_model(model_name, **kwargs)
+        except TypeError:
+            self.model = gigaam.load_model(model_name)
+        self.name = f"gigaam_{model_name}"
+
+    def transcribe(self, path: str) -> str:
+        out = self.model.transcribe(path)
+        return (out if isinstance(out, str) else getattr(out, "text", str(out))).strip()
+
+
+def transcribe_clips(work_dir: Path, asr, force: bool = False) -> int:
+    """Fills ru_text for clips that have no human subtitle text. Human text is
+    never overwritten; --force redoes machine transcripts."""
+    import json
+    work_dir = Path(work_dir)
+    manifest = work_dir / "manifest.jsonl"
+    if not manifest.exists():
+        raise SystemExit(f"{manifest} missing -- run cut_clips first")
+    rows = [json.loads(l) for l in manifest.read_text(encoding="utf-8").splitlines() if l.strip()]
+    done = 0
+    for r in rows:
+        if r.get("ru_text_source") == "human_subs":
+            continue
+        if r.get("ru_text") and not force:
+            continue
+        r["ru_text"] = asr.transcribe(str(work_dir / r["clip"]))
+        r["ru_text_source"] = asr.name if r["ru_text"] else None
+        done += 1
+    with open(manifest, "w", encoding="utf-8") as f:
+        for r in rows:
+            f.write(json.dumps(r, ensure_ascii=False) + "\n")
+    print(f"{work_dir.name}: transcribed {done} clips with {asr.name}")
+    return done
 
 
 def find_binary() -> str | None:
@@ -89,11 +147,18 @@ def transcribe(work_dir: Path, model: str = "large-v3", use_vad: bool = True, th
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("work_dirs", nargs="+", type=Path, help="Folders made by extract_dialogue.py")
-    ap.add_argument("--model", default="large-v3", help=f"{', '.join(MODELS)} or a path to a ggml .bin")
+    ap.add_argument("--asr", choices=["gigaam", "whisper"], default="gigaam")
+    ap.add_argument("--gigaam-model", default=GIGAAM_DEFAULT)
+    ap.add_argument("--model", default="large-v3", help=f"whisper: {', '.join(MODELS)} or a path to a ggml .bin")
     ap.add_argument("--no-vad", action="store_true")
     ap.add_argument("--threads", type=int, default=8)
     ap.add_argument("--force", action="store_true", help="Re-transcribe even if ru.whisper.srt exists")
     args = ap.parse_args()
+    if args.asr == "gigaam":
+        asr = GigaAM(args.gigaam_model)
+        for wd in args.work_dirs:
+            transcribe_clips(wd, asr, force=args.force)
+        return
     for wd in args.work_dirs:
         out = transcribe(wd, args.model, not args.no_vad, args.threads, args.force)
         if out:

@@ -40,6 +40,14 @@ def main() -> None:
     print("Diarization model:")
     fetch_hf(DIAR_MODEL, None if args.nemo else ["*.nemo"])
 
+    print("GigaAM v3 (Russian ASR):")
+    try:
+        from .transcribe import GigaAM
+        GigaAM()
+        print("  ok  gigaam v3_e2e_rnnt")
+    except Exception as e:
+        print(f"  skipped GigaAM ({e.__class__.__name__}: {e})")
+
     print("whisper.cpp model + Silero VAD:")
     from huggingface_hub import hf_hub_download
     from .transcribe import MODELS, VAD_FILE, VAD_REPO, WHISPER_REPO

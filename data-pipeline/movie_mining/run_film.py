@@ -4,8 +4,9 @@
     python -m movie_mining.run_film D:\\films\\                   # or any folder
     python -m movie_mining.run_film film.mkv --ru-srt film.ru.srt --en-srt film.en.srt
 
-extract_dialogue -> diarize (Nemotron 3) -> [transcribe (whisper.cpp), only when
-there's no Russian subtitle] -> cut_clips. Steps whose outputs
+extract_dialogue -> diarize (Nemotron 3) -> cut_clips -> transcribe clips with
+GigaAM v3 when there's no Russian subtitle (or --asr whisper: whisper.cpp on
+the whole stem before cutting; --asr none to skip). Steps whose outputs
 already exist are skipped, so re-running after a crash resumes. The diarization
 model is loaded once for the whole batch.
 """
@@ -35,8 +36,8 @@ def main() -> None:
                     help="Diarization backend (auto: NeMo if installed, else transformers)")
     ap.add_argument("--chunk-minutes", type=float, default=0)
     ap.add_argument("--min-sbr", type=float, default=8.0)
-    ap.add_argument("--no-transcribe", action="store_true",
-                    help="Don't run whisper.cpp on films without a Russian subtitle")
+    ap.add_argument("--asr", choices=["gigaam", "whisper", "none"], default="gigaam",
+                    help="Transcriber for films without a Russian subtitle")
     ap.add_argument("--whisper-model", default="large-v3", help="large-v3, large-v3-turbo, ... or a .bin path")
     ap.add_argument("--no-require-subs", action="store_true")
     args = ap.parse_args()
@@ -62,12 +63,16 @@ def main() -> None:
             segs = diarizer.diarize(wd / "dialogue.wav")
             (wd / "segments.json").write_text(__import__("json").dumps(segs, indent=1), encoding="utf-8")
             print(f"{wd.name}: {len(segs)} segments")
-    if not args.no_transcribe:
-        for wd in work_dirs:
-            if not (wd / "ru.srt").exists():
-                transcribe.transcribe(wd, args.whisper_model)
+    needs_asr = [wd for wd in work_dirs if not (wd / "ru.srt").exists()]
+    if args.asr == "whisper":
+        for wd in needs_asr:
+            transcribe.transcribe(wd, args.whisper_model)
     for wd in work_dirs:
         cut_clips.cut(wd, min_sbr=args.min_sbr, require_subs=not args.no_require_subs)
+    if args.asr == "gigaam" and needs_asr:
+        asr = transcribe.GigaAM()
+        for wd in needs_asr:
+            transcribe.transcribe_clips(wd, asr)
 
 
 if __name__ == "__main__":

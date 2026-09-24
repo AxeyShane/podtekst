@@ -95,6 +95,7 @@ if ($LASTEXITCODE -ne 0) {
 
 Step "Installing mining requirements"
 Run $vpy -m pip install --no-cache-dir -r "$MM\requirements-text.txt" soundfile demucs huggingface_hub
+Run $vpy -m pip install --no-cache-dir "gigaam @ git+https://github.com/salute-developers/GigaAM.git"
 # The model card installs transformers from git for Nemotron 3 Diarization support.
 Run $vpy -m pip install --no-cache-dir --upgrade "git+https://github.com/huggingface/transformers"
 

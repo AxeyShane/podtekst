@@ -104,20 +104,23 @@ For each film:
    its most accurate offline profile. Use it inside WSL2 (see
    `requirements-audio.txt`), and add `--chunk-minutes 10` if a whole film
    runs out of GPU memory. `--backend auto` picks NeMo when it's installed.
-3. `transcribe` runs only when there's no Russian subtitle, for example on
-   an audio-only file. It uses **whisper.cpp** (`whisper-cli`, CUDA build,
-   `ggml-large-v3`, Silero VAD, `-mc 0` against repetition loops) on the
-   cleaned dialogue and writes `ru.whisper.srt`. Skip it with
-   `--no-transcribe`, or pick `--whisper-model large-v3-turbo` for about 2×
-   the speed.
-4. `cut_clips`: remove overlapping speech, keep 1–12 s pieces, and drop
+3. `cut_clips`: remove overlapping speech, keep 1–12 s pieces, and drop
    pieces with a speech-to-background ratio under 8 dB or near-silent ones.
-   Attach RU text (a human `ru.srt` if there is one, otherwise the Whisper
-   transcript; `ru_text_source` records which) plus EN subtitle text.
+   Attach RU/EN subtitle text when there are subtitles.
+4. `transcribe` runs only when there's no Russian subtitle, for example on
+   an audio-only file. It uses **GigaAM v3** (`v3_e2e_rnnt`: Russian-specialised,
+   punctuated output) on each clip. Clips are at most 12 s, inside GigaAM's
+   25 s limit, so no long-form mode, pyannote or HF token is needed. It fills
+   the empty `ru_text` fields; human subtitle text is never overwritten.
+   `--asr whisper` uses **whisper.cpp** (large-v3, Silero VAD, `-mc 0`)
+   instead, on the whole dialogue stem before cutting. `--asr none` skips
+   transcription. `ru_text_source` in the manifest records where each line
+   came from.
 
-Whisper text is a set of **pseudo-labels**. It's fine for making clips
+Machine transcripts (GigaAM or Whisper) are **pseudo-labels**. It's fine for making clips
 readable, spot-checking emotion2vec, and finding natural spoken lines to use
-as seeds. It is *not* a reference for evaluating ASR; that still needs human
+as seeds. They are *not* a reference for evaluating ASR, especially not GigaAM's own
+output, since GigaAM is the ASR planned for the app. That still needs human
 transcripts.
 
 The output lands in `<media root>/work/<film>/`: `clips/*.wav` plus
@@ -137,8 +140,8 @@ A few things to know before a big run:
 Each step also runs on its own:
 `python -m movie_mining.extract_dialogue film.mkv`,
 `python -m movie_mining.diarize <media root>/work/<film>`,
-`python -m movie_mining.transcribe <media root>/work/<film>` and
-`python -m movie_mining.cut_clips <media root>/work/<film>`.
+`python -m movie_mining.cut_clips <media root>/work/<film>` and
+`python -m movie_mining.transcribe <media root>/work/<film>`.
 
 ## Tests
 

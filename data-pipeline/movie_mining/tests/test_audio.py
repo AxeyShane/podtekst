@@ -130,3 +130,25 @@ class WhisperTests(unittest.TestCase):
             row = json.loads((wd / "manifest.jsonl").read_text(encoding="utf-8").splitlines()[0])
             self.assertEqual(row["ru_text"], "Ты где был?")
             self.assertEqual(row["ru_text_source"], "whisper")
+
+
+class GigaAMTests(unittest.TestCase):
+    def test_transcribe_clips_fills_only_missing_text(self):
+        from movie_mining import transcribe
+
+        class FakeASR:
+            name = "gigaam_fake"
+
+            def transcribe(self, path):
+                return "Привет, как дела?"
+
+        with tempfile.TemporaryDirectory() as d:
+            wd = Path(d)
+            rows = [{"clip": "clips/a.wav", "ru_text": "Ты где был?", "ru_text_source": "human_subs"},
+                    {"clip": "clips/b.wav", "ru_text": "", "ru_text_source": None}]
+            (wd / "manifest.jsonl").write_text("\n".join(json.dumps(r, ensure_ascii=False) for r in rows))
+            self.assertEqual(transcribe.transcribe_clips(wd, FakeASR()), 1)
+            out = [json.loads(l) for l in (wd / "manifest.jsonl").read_text(encoding="utf-8").splitlines()]
+            self.assertEqual(out[0]["ru_text"], "Ты где был?")
+            self.assertEqual(out[1]["ru_text"], "Привет, как дела?")
+            self.assertEqual(out[1]["ru_text_source"], "gigaam_fake")
