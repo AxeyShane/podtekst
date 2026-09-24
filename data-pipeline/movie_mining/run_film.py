@@ -41,6 +41,8 @@ def main() -> None:
                     help="Transcriber for films without a Russian subtitle")
     ap.add_argument("--whisper-model", default="large-v3", help="large-v3, large-v3-turbo, ... or a .bin path")
     ap.add_argument("--no-require-subs", action="store_true")
+    ap.add_argument("--cross-check", choices=["none", "whisper"], default="none",
+                    help="whisper: second ASR opinion per clip (ru_text_whisper, asr_cer, asr_agree)")
     args = ap.parse_args()
 
     films = sorted(p for p in args.path.iterdir() if p.suffix.lower() in MEDIA_EXT) if args.path.is_dir() \
@@ -74,6 +76,10 @@ def main() -> None:
         asr = transcribe.GigaAM()
         for wd in needs_asr:
             transcribe.transcribe_clips(wd, asr)
+        del asr                                   # free the GPU for whisper.cpp
+    if args.cross_check == "whisper" and args.asr == "gigaam":
+        for wd in needs_asr:
+            transcribe.cross_check(wd, lambda d, n: transcribe.whisper_clip_texts(d, n, args.whisper_model))
 
 
 if __name__ == "__main__":

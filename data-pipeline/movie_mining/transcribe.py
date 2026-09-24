@@ -12,6 +12,11 @@ pyannote plus a Hugging Face token. Caveat: GigaAM is also the ASR planned
 for the app, so its own transcripts can't be used to *evaluate* it; they're
 fine for clip text, seeds and emotion2vec checks.
 
+--cross-check whisper (after GigaAM) re-transcribes each clip with whisper.cpp and
+stores ru_text_whisper, asr_cer (character error rate vs ru_text, after lowercasing,
+ё->е and dropping punctuation) and asr_agree (CER <= 0.10). Two independent ASRs
+agreeing is a cheap confidence signal for pseudo-labels -- still not ground truth.
+
 whisper.cpp (alternative) transcribes the whole dialogue stem *before*
 cut_clips into ru.whisper.srt, as described below.
 
@@ -36,6 +41,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -90,6 +96,76 @@ def transcribe_clips(work_dir: Path, asr, force: bool = False) -> int:
             f.write(json.dumps(r, ensure_ascii=False) + "\n")
     print(f"{work_dir.name}: transcribed {done} clips with {asr.name}")
     return done
+
+
+# ------------------------------------------------------------ cross-check (--cross-check whisper)
+_NON_WORD = re.compile(r"[^\w\s]|_", re.UNICODE)
+
+
+def normalize_for_cer(text: str) -> str:
+    """Lowercase, ё->е, punctuation dropped, whitespace collapsed."""
+    return " ".join(_NON_WORD.sub(" ", text.lower().replace("ё", "е")).split())
+
+
+def cer(hyp: str, ref: str) -> float:
+    """Character error rate of hyp against ref after normalize_for_cer (Levenshtein / len(ref))."""
+    h, r = normalize_for_cer(hyp), normalize_for_cer(ref)
+    if not r:
+        return 0.0 if not h else 1.0
+    prev = list(range(len(h) + 1))
+    for i, rc in enumerate(r, 1):
+        cur = [i]
+        for j, hc in enumerate(h, 1):
+            cur.append(min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (rc != hc)))
+        prev = cur
+    return prev[-1] / len(r)
+
+
+def whisper_clip_texts(clips_dir: Path, names: list[str], model: str = "large-v3", threads: int = 8,
+                       binary: str | None = None, batch: int = 150) -> dict[str, str]:
+    """Transcribe clip files with whisper-cli, many per call so the model loads once per batch
+    (batches keep the Windows command line under its 32k limit). No VAD: clips are speech already."""
+    binary = binary or find_binary()
+    if not binary:
+        raise SystemExit("whisper-cli not found (set WHISPER_CPP_BIN or run setup_windows.ps1)")
+    model = model_path(model)
+    out: dict[str, str] = {}
+    for n in range(0, len(names), batch):
+        chunk = names[n:n + batch]
+        cmd = [binary, "-m", model, "-l", "ru", "-t", str(threads), "-nt", "-np", "-otxt"] + chunk
+        res = subprocess.run(cmd, cwd=clips_dir, capture_output=True, text=True, encoding="utf-8", errors="replace")
+        if res.returncode != 0:
+            raise RuntimeError(f"whisper-cli failed ({res.returncode}):\n{res.stderr[-2000:]}")
+        for name in chunk:
+            txt = clips_dir / f"{name}.txt"                  # whisper-cli writes <input>.txt
+            out[name] = " ".join(txt.read_text(encoding="utf-8").split()) if txt.exists() else ""
+            txt.unlink(missing_ok=True)
+        print(f"  whisper cross-check: {min(n + batch, len(names))}/{len(names)} clips")
+    return out
+
+
+def cross_check(work_dir: Path, transcribe_fn=None, max_cer: float = 0.10) -> dict:
+    """Second ASR opinion on machine-transcribed clips: adds ru_text_whisper, asr_cer (Whisper
+    vs ru_text) and asr_agree (asr_cer <= max_cer) to manifest.jsonl. Human-subtitle rows are
+    skipped. transcribe_fn(clips_dir, names) -> {name: text}; defaults to whisper.cpp."""
+    import json
+    work_dir = Path(work_dir)
+    manifest = work_dir / "manifest.jsonl"
+    rows = [json.loads(l) for l in manifest.read_text(encoding="utf-8").splitlines() if l.strip()]
+    todo = [r for r in rows if r.get("ru_text_source") != "human_subs"]
+    texts = (transcribe_fn or whisper_clip_texts)(work_dir / "clips", [Path(r["clip"]).name for r in todo])
+    for r in todo:
+        r["ru_text_whisper"] = texts.get(Path(r["clip"]).name, "")
+        r["asr_cer"] = round(cer(r["ru_text_whisper"], r.get("ru_text") or ""), 3)
+        r["asr_agree"] = r["asr_cer"] <= max_cer
+    with open(manifest, "w", encoding="utf-8") as f:
+        for r in rows:
+            f.write(json.dumps(r, ensure_ascii=False) + "\n")
+    agree = sum(r["asr_agree"] for r in todo)
+    stats = {"cross_checked": len(todo), "asr_agree": agree,
+             "asr_agree_pct": round(100 * agree / max(1, len(todo)), 1)}
+    print(f"{work_dir.name}: {stats}")
+    return stats
 
 
 def find_binary() -> str | None:
@@ -153,11 +229,15 @@ def main() -> None:
     ap.add_argument("--no-vad", action="store_true")
     ap.add_argument("--threads", type=int, default=8)
     ap.add_argument("--force", action="store_true", help="Re-transcribe even if ru.whisper.srt exists")
+    ap.add_argument("--cross-check", choices=["none", "whisper"], default="none",
+                    help="whisper: re-transcribe each clip with whisper.cpp and flag GigaAM/Whisper agreement")
     args = ap.parse_args()
     if args.asr == "gigaam":
         asr = GigaAM(args.gigaam_model)
         for wd in args.work_dirs:
             transcribe_clips(wd, asr, force=args.force)
+            if args.cross_check == "whisper":
+                cross_check(wd, lambda d, n: whisper_clip_texts(d, n, args.model, args.threads))
         return
     for wd in args.work_dirs:
         out = transcribe(wd, args.model, not args.no_vad, args.threads, args.force)

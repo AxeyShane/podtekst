@@ -115,6 +115,39 @@ class DemucsTests(unittest.TestCase):
         self.assertEqual(demucs[:3], [sys.executable, "-m", "demucs"])
 
 
+class CrossCheckTests(unittest.TestCase):
+    def test_cer_normalisation(self):
+        from movie_mining.transcribe import cer
+        self.assertEqual(cer("ещё раз, ПРИВЕТ!", "Еще раз привет."), 0.0)   # case, punctuation, ё
+        self.assertAlmostEqual(cer("кот", "кит"), 1 / 3)
+        self.assertEqual(cer("", ""), 0.0)
+        self.assertEqual(cer("шум", ""), 1.0)
+
+    def test_cross_check_flags_disagreement(self):
+        from movie_mining import transcribe
+        with tempfile.TemporaryDirectory() as d:
+            wd = Path(d)
+            (wd / "clips").mkdir()
+            rows = [{"clip": "clips/a.wav", "ru_text": "Ты где был?", "ru_text_source": "human_subs"},
+                    {"clip": "clips/b.wav", "ru_text": "С лёгким паром!", "ru_text_source": "gigaam_x"},
+                    {"clip": "clips/c.wav", "ru_text": "Надо выпить.", "ru_text_source": "gigaam_x"}]
+            (wd / "manifest.jsonl").write_text("\n".join(json.dumps(r, ensure_ascii=False) for r in rows),
+                                               encoding="utf-8")
+            seen = []
+
+            def fake(clips_dir, names):
+                seen.extend(names)
+                return {"b.wav": "с легким паром", "c.wav": "Продолжение следует"}
+            stats = transcribe.cross_check(wd, fake)
+            self.assertEqual(seen, ["b.wav", "c.wav"])                           # human rows skipped
+            out = [json.loads(l) for l in (wd / "manifest.jsonl").read_text(encoding="utf-8").splitlines()]
+            self.assertNotIn("asr_agree", out[0])
+            self.assertEqual((out[1]["asr_cer"], out[1]["asr_agree"]), (0.0, True))
+            self.assertFalse(out[2]["asr_agree"])
+            self.assertEqual(out[2]["ru_text_whisper"], "Продолжение следует")
+            self.assertEqual(stats["asr_agree_pct"], 50.0)
+
+
 class WhisperTests(unittest.TestCase):
     @unittest.skipIf(sys.platform == "win32", "fake whisper-cli is a POSIX shell script")
     def test_command_and_fallback(self):
