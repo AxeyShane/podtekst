@@ -11,8 +11,9 @@
     3. Saves PODTEKST_MEDIA_ROOT / HF_HOME / TORCH_HOME as user environment
        variables, so later terminals use the same locations.
     4. Creates the venv, installs CUDA PyTorch + the text and audio requirements.
-    5. Pre-downloads all models (~3 GB) and the OpenSubtitles zip (~1 GB).
-    6. Runs the unit tests and a GPU check.
+    5. Downloads the whisper.cpp CUDA build (sets WHISPER_CPP_BIN).
+    6. Pre-downloads all models (~6 GB incl. Whisper large-v3) and the OpenSubtitles zip (~1 GB).
+    7. Runs the unit tests and a GPU check.
 
   Re-running is safe: finished steps are skipped or are no-ops.
   Diarization uses the transformers backend natively on Windows. The NeMo
@@ -97,6 +98,31 @@ Run $vpy -m pip install --no-cache-dir -r "$MM\requirements-text.txt" soundfile 
 # The model card installs transformers from git for Nemotron 3 Diarization support.
 Run $vpy -m pip install --no-cache-dir --upgrade "git+https://github.com/huggingface/transformers"
 
+Step "Installing whisper.cpp (CUDA build)"
+$WDir = if ($useD) { "$Base\whisper.cpp" } else { "$env:LOCALAPPDATA\podtekst\whisper.cpp" }
+$cli = Get-ChildItem -Path $WDir -Recurse -Filter "whisper-cli.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+if (-not $cli) {
+    $rel = Invoke-RestMethod "https://api.github.com/repos/ggml-org/whisper.cpp/releases/latest" -Headers @{ "User-Agent" = "podtekst-setup" }
+    $zips = $rel.assets | Where-Object { $_.name -like "*.zip" -and $_.name -match "x64" }
+    $asset = $zips | Where-Object { $_.name -match "cublas|cuda" -and $_.name -match "12" } | Sort-Object name -Descending | Select-Object -First 1
+    if (-not $asset) {
+        Write-Warning "No CUDA 12 Windows build in $($rel.tag_name) -- using the CPU build (slower)."
+        $asset = $zips | Where-Object { $_.name -notmatch "cublas|cuda|arm" } | Select-Object -First 1
+    }
+    if (-not $asset) { throw "No Windows x64 whisper.cpp build found in release $($rel.tag_name)" }
+    Write-Host "Downloading $($asset.name) ($($rel.tag_name))"
+    New-Item -ItemType Directory -Force -Path $WDir | Out-Null
+    $zip = Join-Path $WDir $asset.name
+    Invoke-WebRequest $asset.browser_download_url -OutFile $zip
+    Expand-Archive $zip -DestinationPath $WDir -Force
+    Remove-Item $zip
+    $cli = Get-ChildItem -Path $WDir -Recurse -Filter "whisper-cli.exe" | Select-Object -First 1
+}
+if (-not $cli) { throw "whisper-cli.exe not found after install in $WDir" }
+[Environment]::SetEnvironmentVariable("WHISPER_CPP_BIN", $cli.FullName, "User")
+$env:WHISPER_CPP_BIN = $cli.FullName
+Write-Host "whisper-cli: $($cli.FullName)"
+
 Step "GPU check"
 & $vpy -c "import torch; print('CUDA available:', torch.cuda.is_available(), '|', torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'CPU only')"
 
@@ -111,4 +137,5 @@ try {
 Step "Done"
 Write-Host "Activate:  & '$Venv\Scripts\Activate.ps1'   (then cd $DP)"
 Write-Host "Text:      python -m movie_mining.mine_subtitles --name subs1 --max-lines 3000000"
-Write-Host "Audio:     drop the film (+ film.ru.srt / film.en.srt) in $Media\films, then: python -m movie_mining.run_film"
+Write-Host "Audio:     drop the film or audio file (+ film.ru.srt / film.en.srt if you have them) in $Media\films,"
+Write-Host "           then: python -m movie_mining.run_film   (no Russian subtitle -> whisper.cpp transcribes it)"

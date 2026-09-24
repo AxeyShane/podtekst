@@ -29,6 +29,7 @@ def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--no-data", action="store_true", help="Skip the OpenSubtitles zip")
     ap.add_argument("--nemo", action="store_true", help="Also fetch the .nemo checkpoint (for the NeMo backend)")
+    ap.add_argument("--whisper-model", default="large-v3", help="whisper.cpp model to pre-download")
     args = ap.parse_args()
 
     print("Text models:")
@@ -38,6 +39,13 @@ def main() -> None:
 
     print("Diarization model:")
     fetch_hf(DIAR_MODEL, None if args.nemo else ["*.nemo"])
+
+    print("whisper.cpp model + Silero VAD:")
+    from huggingface_hub import hf_hub_download
+    from .transcribe import MODELS, VAD_FILE, VAD_REPO, WHISPER_REPO
+    for fname in (MODELS[args.whisper_model], ):
+        print(f"  ok  {hf_hub_download(WHISPER_REPO, fname)}")
+    print(f"  ok  {hf_hub_download(VAD_REPO, VAD_FILE)}")
 
     print("Demucs (stereo fallback):")
     try:

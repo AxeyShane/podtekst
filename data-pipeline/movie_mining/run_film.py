@@ -4,7 +4,8 @@
     python -m movie_mining.run_film D:\\films\\                   # or any folder
     python -m movie_mining.run_film film.mkv --ru-srt film.ru.srt --en-srt film.en.srt
 
-extract_dialogue -> diarize (Nemotron 3) -> cut_clips. Steps whose outputs
+extract_dialogue -> diarize (Nemotron 3) -> [transcribe (whisper.cpp), only when
+there's no Russian subtitle] -> cut_clips. Steps whose outputs
 already exist are skipped, so re-running after a crash resumes. The diarization
 model is loaded once for the whole batch.
 """
@@ -13,7 +14,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from . import cut_clips, diarize, extract_dialogue
+from . import cut_clips, diarize, extract_dialogue, transcribe
 from .paths import FILMS_DIR
 
 VIDEO_EXT = {".mkv", ".mp4", ".avi", ".mov", ".m4v", ".ts", ".webm"}
@@ -34,6 +35,9 @@ def main() -> None:
                     help="Diarization backend (auto: NeMo if installed, else transformers)")
     ap.add_argument("--chunk-minutes", type=float, default=0)
     ap.add_argument("--min-sbr", type=float, default=8.0)
+    ap.add_argument("--no-transcribe", action="store_true",
+                    help="Don't run whisper.cpp on films without a Russian subtitle")
+    ap.add_argument("--whisper-model", default="large-v3", help="large-v3, large-v3-turbo, ... or a .bin path")
     ap.add_argument("--no-require-subs", action="store_true")
     args = ap.parse_args()
 
@@ -58,6 +62,10 @@ def main() -> None:
             segs = diarizer.diarize(wd / "dialogue.wav")
             (wd / "segments.json").write_text(__import__("json").dumps(segs, indent=1), encoding="utf-8")
             print(f"{wd.name}: {len(segs)} segments")
+    if not args.no_transcribe:
+        for wd in work_dirs:
+            if not (wd / "ru.srt").exists():
+                transcribe.transcribe(wd, args.whisper_model)
     for wd in work_dirs:
         cut_clips.cut(wd, min_sbr=args.min_sbr, require_subs=not args.no_require_subs)
 

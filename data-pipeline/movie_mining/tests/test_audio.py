@@ -91,3 +91,42 @@ class AudioTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class WhisperTests(unittest.TestCase):
+    def test_command_and_fallback(self):
+        import os
+        import stat
+        from movie_mining import transcribe
+        cmd = transcribe.build_command("whisper-cli", "m.bin", Path("d.wav"), Path("wd/ru.whisper"), vad="v.bin")
+        self.assertEqual(cmd[:12], ["whisper-cli", "-m", "m.bin", "-f", "d.wav", "-l", "ru", "-osrt", "-of",
+                                    str(Path("wd/ru.whisper")), "-t", "8"])
+        self.assertIn("--vad", cmd)
+
+        with tempfile.TemporaryDirectory() as d:
+            tmp = Path(d)
+            # fake whisper-cli: writes <-of>.srt like the real one
+            fake = tmp / "whisper-cli"
+            fake.write_text('#!/bin/sh\nwhile [ "$1" ]; do [ "$1" = "-of" ] && out="$2"; shift; done\n'
+                            'printf "1\\n00:00:01,000 --> 00:00:03,000\\nТы где был?\\n" > "$out.srt"\n')
+            fake.chmod(fake.stat().st_mode | stat.S_IEXEC)
+            wd = tmp / "work"
+            wd.mkdir()
+            import numpy as np
+            import soundfile as sf
+            sr = 16000
+            t = np.arange(5 * sr) / sr
+            sf.write(wd / "dialogue.wav", (0.3 * np.sin(2 * np.pi * 220 * t) * ((t > 1) & (t < 3))).astype("float32"), sr)
+            sf.write(wd / "background.wav", np.zeros_like(t, dtype="float32"), sr)
+            (wd / "segments.json").write_text(json.dumps([{"start": 1.0, "end": 3.0, "speaker": "0"}]))
+            orig = transcribe.model_path
+            transcribe.model_path = lambda m: "m.bin"
+            try:
+                out = transcribe.transcribe(wd, use_vad=False, binary=str(fake))
+            finally:
+                transcribe.model_path = orig
+            self.assertEqual(out.name, "ru.whisper.srt")
+            cut_clips.cut(wd)
+            row = json.loads((wd / "manifest.jsonl").read_text(encoding="utf-8").splitlines()[0])
+            self.assertEqual(row["ru_text"], "Ты где был?")
+            self.assertEqual(row["ru_text_source"], "whisper")

@@ -3,7 +3,8 @@
     python -m movie_mining.cut_clips <media root>/work/<film>
 
 Reads dialogue.wav, background.wav, segments.json (+ ru.srt / en.srt if
-present). For each diarized segment:
+present, else the Whisper transcript ru.whisper.srt from transcribe.py). For each
+diarized segment:
   1. cut out any time where 2+ speakers overlap,
   2. keep pieces between --min-dur and --max-dur seconds (longer pieces are
      split),
@@ -87,8 +88,12 @@ def cut(work_dir: Path, min_dur: float = 1.0, max_dur: float = 12.0, min_sbr: fl
     dia, bg = dia[:n], bg[:n]
     segs = json.loads((work_dir / "segments.json").read_text(encoding="utf-8"))
     ru, en = load_srt(work_dir / "ru.srt"), load_srt(work_dir / "en.srt")
+    ru_source = "human_subs" if ru else None
+    if not ru:
+        ru = load_srt(work_dir / "ru.whisper.srt")      # machine transcript (transcribe.py)
+        ru_source = "whisper" if ru else None
     if require_subs and not ru:
-        print(f"{work_dir.name}: no ru.srt -- keeping clips without text (pass --no-require-subs to silence)")
+        print(f"{work_dir.name}: no ru.srt or ru.whisper.srt -- keeping clips without text")
         require_subs = False
     meta_path = work_dir / "meta.json"
     method = json.loads(meta_path.read_text(encoding="utf-8")).get("method") if meta_path.exists() else None
@@ -125,7 +130,8 @@ def cut(work_dir: Path, min_dur: float = 1.0, max_dur: float = 12.0, min_sbr: fl
                 rows.append({"clip": f"clips/{name}", "film": work_dir.name, "start": round(cs, 3),
                              "end": round(ce, 3), "dur": round(ce - cs, 3), "speaker": seg["speaker"],
                              "level_db": round(level, 1), "sbr_db": round(sbr, 1),
-                             "ru_text": ru_text, "en_text": en_text, "method": method})
+                             "ru_text": ru_text, "ru_text_source": ru_source if ru_text else None,
+                             "en_text": en_text, "method": method})
     with open(work_dir / "manifest.jsonl", "w", encoding="utf-8") as f:
         for r in rows:
             f.write(json.dumps(r, ensure_ascii=False) + "\n")

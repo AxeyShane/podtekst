@@ -28,7 +28,9 @@ The script:
 - checks Python, the GPU, git and ffmpeg (installing ffmpeg via winget if
   it's missing);
 - creates a venv and installs CUDA PyTorch plus everything below;
-- pre-downloads all models (~3 GB) and the OpenSubtitles zip (~1 GB);
+- downloads the whisper.cpp CUDA build (and sets `WHISPER_CPP_BIN`);
+- pre-downloads all models (~6 GB, including Whisper large-v3) and the
+  OpenSubtitles zip (~1 GB);
 - runs the tests.
 
 If C: has less than 40 GB free and there's a D: drive, the venv, model
@@ -85,7 +87,8 @@ python -m movie_mining.run_film                          # every video in <media
 python -m movie_mining.run_film D:\films\x.mkv --ru-srt x.ru.srt --en-srt x.en.srt
 ```
 
-Sidecar subtitles named `film.ru.srt` and `film.en.srt` next to the video are
+Audio-only files (`.mp3`, `.m4a`, `.opus`, `.flac`, `.wav`, …) work too.
+Sidecar subtitles named `film.ru.srt` and `film.en.srt` next to the file are
 picked up automatically, and so are embedded text subtitle tracks.
 Image-based subtitles (PGS/VobSub) need OCR first.
 
@@ -101,9 +104,21 @@ For each film:
    its most accurate offline profile. Use it inside WSL2 (see
    `requirements-audio.txt`), and add `--chunk-minutes 10` if a whole film
    runs out of GPU memory. `--backend auto` picks NeMo when it's installed.
-3. `cut_clips`: remove overlapping speech, keep 1–12 s pieces, and drop
+3. `transcribe` runs only when there's no Russian subtitle, for example on
+   an audio-only file. It uses **whisper.cpp** (`whisper-cli`, CUDA build,
+   `ggml-large-v3`, Silero VAD, `-mc 0` against repetition loops) on the
+   cleaned dialogue and writes `ru.whisper.srt`. Skip it with
+   `--no-transcribe`, or pick `--whisper-model large-v3-turbo` for about 2×
+   the speed.
+4. `cut_clips`: remove overlapping speech, keep 1–12 s pieces, and drop
    pieces with a speech-to-background ratio under 8 dB or near-silent ones.
-   Attach RU/EN subtitle text.
+   Attach RU text (a human `ru.srt` if there is one, otherwise the Whisper
+   transcript; `ru_text_source` records which) plus EN subtitle text.
+
+Whisper text is a set of **pseudo-labels**. It's fine for making clips
+readable, spot-checking emotion2vec, and finding natural spoken lines to use
+as seeds. It is *not* a reference for evaluating ASR; that still needs human
+transcripts.
 
 The output lands in `<media root>/work/<film>/`: `clips/*.wav` plus
 `manifest.jsonl`, with clip, speaker, times, level, ratio, ru_text and en_text.
@@ -121,7 +136,8 @@ A few things to know before a big run:
 
 Each step also runs on its own:
 `python -m movie_mining.extract_dialogue film.mkv`,
-`python -m movie_mining.diarize <media root>/work/<film>` and
+`python -m movie_mining.diarize <media root>/work/<film>`,
+`python -m movie_mining.transcribe <media root>/work/<film>` and
 `python -m movie_mining.cut_clips <media root>/work/<film>`.
 
 ## Tests
