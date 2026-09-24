@@ -30,6 +30,7 @@ $MM   = $PSScriptRoot                              # ...\data-pipeline\movie_min
 $DP   = Split-Path $MM -Parent                     # ...\data-pipeline
 function Step($msg) { Write-Host "`n== $msg" -ForegroundColor Cyan }
 function Run {                  # run a native command, stop on failure (plain $args so "-m" passes through)
+    $ErrorActionPreference = "Continue"   # function-local: pip/git notices on stderr must not abort; exit code decides
     $exe = $args[0]; $rest = @($args | Select-Object -Skip 1)
     & $exe @rest
     if ($LASTEXITCODE -ne 0) { throw "Failed ($LASTEXITCODE): $($args -join ' ')" }
@@ -88,7 +89,9 @@ $vpy = "$Venv\Scripts\python.exe"
 Run $vpy -m pip install --upgrade pip wheel --quiet
 
 Step "Installing PyTorch ($CudaTag)"
+$ErrorActionPreference = "Continue"   # PS 5.1 makes native stderr fatal under "Stop"; this probe fails by design
 & $vpy -c "import torch" 2>$null
+$ErrorActionPreference = "Stop"
 if ($LASTEXITCODE -ne 0) {
     Run $vpy -m pip install --no-cache-dir torch torchaudio --index-url "https://download.pytorch.org/whl/$CudaTag"
 }
