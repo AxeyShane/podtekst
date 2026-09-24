@@ -3,8 +3,8 @@
     python -m movie_mining.cut_clips <media root>/work/<film>
 
 Reads dialogue.wav, background.wav, segments.json (+ ru.srt / en.srt if
-present, else the Whisper transcript ru.whisper.srt from transcribe.py). For each
-diarized segment:
+present, else the Whisper transcript ru.whisper.srt from transcribe.py). Same-speaker
+segments less than --merge-gap apart are joined first. For each segment:
   1. cut out any time where 2+ speakers overlap,
   2. keep pieces between --min-dur and --max-dur seconds (longer pieces are
      split),
@@ -27,6 +27,23 @@ import numpy as np
 from .srt import load_srt, text_in_window
 
 EPS = 1e-10
+
+
+def merge_same_speaker(segs: list[dict], max_gap: float) -> list[dict]:
+    """Join consecutive segments of one speaker separated by less than max_gap seconds.
+    Diarization splits sentences at short pauses; unmerged, most pieces fall under --min-dur.
+    If another speaker talks inside a bridged gap, overlap_regions() cuts that span out again."""
+    merged: list[dict] = []
+    last: dict[str, dict] = {}
+    for s in sorted(segs, key=lambda x: x["start"]):
+        prev = last.get(s["speaker"])
+        if prev is not None and s["start"] - prev["end"] < max_gap:
+            prev["end"] = max(prev["end"], s["end"])
+            continue
+        s = dict(s)
+        merged.append(s)
+        last[s["speaker"]] = s
+    return merged
 
 
 def overlap_regions(segs: list[dict]) -> list[tuple[float, float]]:
@@ -78,7 +95,7 @@ def rms_db(x: np.ndarray) -> float:
 
 
 def cut(work_dir: Path, min_dur: float = 1.0, max_dur: float = 12.0, min_sbr: float = 8.0,
-        min_level: float = -45.0, require_subs: bool = True, pad: float = 0.05) -> dict:
+        min_level: float = -45.0, require_subs: bool = True, pad: float = 0.05, merge_gap: float = 0.5) -> dict:
     import soundfile as sf
     work_dir = Path(work_dir)
     dia, sr = sf.read(work_dir / "dialogue.wav", dtype="float32")
@@ -98,10 +115,12 @@ def cut(work_dir: Path, min_dur: float = 1.0, max_dur: float = 12.0, min_sbr: fl
     meta_path = work_dir / "meta.json"
     method = json.loads(meta_path.read_text(encoding="utf-8")).get("method") if meta_path.exists() else None
 
+    n_raw = len(segs)
+    segs = merge_same_speaker(segs, merge_gap)
     holes = overlap_regions(segs)
     clips_dir = work_dir / "clips"
     clips_dir.mkdir(exist_ok=True)
-    stats: Counter = Counter(segments=len(segs), overlap_regions=len(holes))
+    stats: Counter = Counter(segments=n_raw, merged_segments=len(segs), overlap_regions=len(holes))
     rows = []
     for seg in sorted(segs, key=lambda s: s["start"]):
         for ps, pe in subtract((seg["start"], seg["end"]), holes):
@@ -149,9 +168,12 @@ def main() -> None:
     ap.add_argument("--min-sbr", type=float, default=8.0, help="Speech-to-background ratio floor, dB")
     ap.add_argument("--min-level", type=float, default=-45.0, help="Dialogue level floor, dBFS")
     ap.add_argument("--no-require-subs", action="store_true", help="Keep clips with no subtitle text")
+    ap.add_argument("--merge-gap", type=float, default=0.5,
+                    help="Join same-speaker segments separated by less than this many seconds")
     args = ap.parse_args()
     for wd in args.work_dirs:
-        cut(wd, args.min_dur, args.max_dur, args.min_sbr, args.min_level, not args.no_require_subs)
+        cut(wd, args.min_dur, args.max_dur, args.min_sbr, args.min_level, not args.no_require_subs,
+            merge_gap=args.merge_gap)
 
 
 if __name__ == "__main__":

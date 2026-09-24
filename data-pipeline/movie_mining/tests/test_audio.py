@@ -89,6 +89,17 @@ class AudioTests(unittest.TestCase):
         self.assertEqual(text_in_window(cues, 1.0, 3.5), "Ты где был?")
         self.assertEqual(text_in_window(cues, 5.5, 8.0), "")               # only 1 s of a 2.3 s cue
 
+    def test_merge_same_speaker(self):
+        segs = [{"start": 0.0, "end": 0.8, "speaker": "a"}, {"start": 1.1, "end": 1.9, "speaker": "a"},  # gap .3
+                {"start": 2.0, "end": 3.0, "speaker": "b"},
+                {"start": 3.2, "end": 4.0, "speaker": "a"},                                         # gap 1.3
+                {"start": 4.2, "end": 5.0, "speaker": "b"}]                                         # gap 1.2
+        out = cut_clips.merge_same_speaker(segs, 0.5)
+        self.assertEqual([(s["speaker"], s["start"], s["end"]) for s in out],
+                         [("a", 0.0, 1.9), ("b", 2.0, 3.0), ("a", 3.2, 4.0), ("b", 4.2, 5.0)])
+        self.assertEqual(segs[0]["end"], 0.8)                                     # input left untouched
+        self.assertEqual(len(cut_clips.merge_same_speaker(segs, 0.0)), 5)         # 0 disables merging
+
 
 if __name__ == "__main__":
     unittest.main()

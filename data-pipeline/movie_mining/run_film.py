@@ -36,6 +36,7 @@ def main() -> None:
                     help="Diarization backend (auto: NeMo if installed, else transformers)")
     ap.add_argument("--chunk-minutes", type=float, default=0)
     ap.add_argument("--min-sbr", type=float, default=8.0)
+    ap.add_argument("--merge-gap", type=float, default=0.5, help="Join same-speaker segments closer than this (s)")
     ap.add_argument("--asr", choices=["gigaam", "whisper", "none"], default="gigaam",
                     help="Transcriber for films without a Russian subtitle")
     ap.add_argument("--whisper-model", default="large-v3", help="large-v3, large-v3-turbo, ... or a .bin path")
@@ -68,7 +69,7 @@ def main() -> None:
         for wd in needs_asr:
             transcribe.transcribe(wd, args.whisper_model)
     for wd in work_dirs:
-        cut_clips.cut(wd, min_sbr=args.min_sbr, require_subs=not args.no_require_subs)
+        cut_clips.cut(wd, min_sbr=args.min_sbr, require_subs=not args.no_require_subs, merge_gap=args.merge_gap)
     if args.asr == "gigaam" and needs_asr:
         asr = transcribe.GigaAM()
         for wd in needs_asr:
