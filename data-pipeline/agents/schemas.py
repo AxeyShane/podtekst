@@ -92,8 +92,8 @@ class SourcedCandidate(BaseModel):
 
 class GuidelineProposal(BaseModel):
     """Guideline Agent output -- a proposed addition to config/calibration_guidelines.md,
-    surfaced for Akshay's approval rather than auto-applied (mirrors how this session's
-    calibration rules were always stated before being applied, never silently assumed)."""
+    surfaced for maintainer approval rather than auto-applied (calibration rules are
+    always stated and reviewed before being applied, never silently assumed)."""
 
     pattern_description: str = Field(description="What kept getting disagreed on.")
     proposed_rule: str = Field(description="The calibration rule text, written the same "

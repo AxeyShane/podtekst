@@ -5,10 +5,9 @@ as CrewAI @tool functions so an agent can call them mid-reasoning instead of
 guessing from parameters alone -- this is the actual "agent vs. one-shot LLM
 call" upgrade discussed when this architecture was designed. Network-backed
 tools (StackExchange search) are also here but, like every other OpenRouter
-call in this pipeline, can only be exercised from Akshay's real terminal --
-the sandboxed device_bash environment this was built in blocks outbound
-requests to *both* openrouter.ai and api.stackexchange.com at the org egress
-proxy (confirmed 2026-09-20; see AGENTS.md).
+call in this pipeline, need a terminal with normal internet access -- the
+sandboxed build environment blocked outbound requests to *both* openrouter.ai
+and api.stackexchange.com (confirmed 2026-09-20; see AGENTS.md).
 """
 
 import json
@@ -107,8 +106,8 @@ def read_calibration_guidelines() -> str:
 def propose_guideline_update(pattern_description: str, proposed_rule: str,
                               supporting_examples_json: str) -> str:
     """Appends a new entry under config/calibration_guidelines.md's "Pending
-    review" section -- does NOT touch the numbered rules, which only Akshay
-    edits by hand after reviewing a proposal. supporting_examples_json is a
+    review" section -- does NOT touch the numbered rules, which are only
+    edited by hand after a maintainer reviews a proposal. supporting_examples_json is a
     JSON array of 2-4 source_text strings the pattern was drawn from. Returns
     the text that was appended. This is the Guideline Agent's only write path
     into the guidelines file -- every other agent only reads it."""

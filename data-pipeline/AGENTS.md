@@ -15,7 +15,7 @@ it at volume.
 | Detection Agent | `agents/tools.py` (`flag_ru_address_pronoun`, `lookup_idiom`), called from `agents_annotate.py` | A pre-generation analog to `deterministic_checks.py`'s free gate |
 | Annotator Agents (x4) | `agents/agent_defs.py`'s `build_annotator_agents()` | `stage_a_generate.py`'s 4-model roster, wrapped as agents given pre-fetched idiom-lexicon + calibration-guidelines evidence in their prompt (see the cost revision below -- no live tool calls) instead of a bare one-shot completion |
 | Adjudicator Agent | `agents_annotate.py`'s `adjudicate()` | `stage_b_prefilter.py` + Cowork verification |
-| Guideline Agent | `agents_guideline.py` | New capability -- formalizes the ad hoc calibration-rule-writing that happened in Claude's session memory during Cowork verification into `config/calibration_guidelines.md` |
+| Guideline Agent | `agents_guideline.py` | New capability -- formalizes the ad hoc calibration-rule-writing done during Cowork verification into `config/calibration_guidelines.md` |
 | Auditor Agent | `agents_audit.py` | `config/models.json`'s `stage_c_coverage_model` role (never had a script before this) |
 
 Supporting files: `agents/schemas.py` (Pydantic output contracts), `agents/llm_factory.py`

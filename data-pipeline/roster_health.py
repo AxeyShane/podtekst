@@ -4,8 +4,8 @@ breaker and check_roster.py's pre-flight check.
 
 Why this exists: qwen's reliability problem (18/166 calls failed in batch 1)
 sat unnoticed until the whole batch was already spent, and dropping it was a
-manual, one-off decision. Akshay asked for the general version: once a model
-is genuinely failing, stop calling it automatically instead of relying on
+manual, one-off decision. This is the general version: once a model is
+genuinely failing, stop calling it automatically instead of relying on
 someone noticing after the fact.
 
 Health state lives in its own file (config/model_health.json by default),

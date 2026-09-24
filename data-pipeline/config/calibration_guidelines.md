@@ -3,11 +3,11 @@
 Living document. The **Adjudicator Agent** reads this before resolving contested
 candidates; the **Guideline Agent** proposes new entries here when it spots a
 recurring disagreement pattern (`agents_guideline.py`) -- proposals are appended
-under "Pending review" and only moved into the numbered rules below once Akshay
-approves them. This is the same calibration knowledge that previously only lived
-in Claude's session memory during Cowork verification -- formalizing it here means
-future Annotator Agent runs can see it too, instead of it being rediscovered by
-whichever Cowork session happens to be verifying that batch.
+under "Pending review" and only moved into the numbered rules below once a
+maintainer approves them. This is the same calibration knowledge that previously
+only lived in individual verification sessions -- formalizing it here means future
+Annotator Agent runs can see it too, instead of it being rediscovered by whichever
+session happens to be verifying that batch.
 
 Seeded 2026-09-20 from the calibration notes established across Stage B batches
 1-3 (see the project's `stage-b-verification-log.md` for the full history each
@@ -76,7 +76,7 @@ already deliver it?
 
 <!-- Guideline Agent proposals land here, newest first. Each entry: the
      pattern, the proposed rule text, 2-4 supporting examples, and the
-     direction (which way the correction goes). Akshay approves by moving
+     direction (which way the correction goes). A maintainer approves by moving
      the rule text up into the numbered list above and deleting the entry
      here; agents_guideline.py never edits the numbered list directly. -->
 

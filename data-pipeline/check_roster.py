@@ -1,8 +1,8 @@
 """
 Pre-flight roster check -- run this before every batch's Stage A generation
-(Akshay's explicit request: catch a roster problem before spending a whole
-batch on it, not after -- that's how qwen's reliability problem went
-unnoticed through all of batch 1).
+(catches a roster problem before a whole batch is spent on it, not after --
+that's how qwen's reliability problem went unnoticed through all of
+batch 1).
 
 Two things, in order:
 1. Live availability/pricing check against OpenRouter's public models API
