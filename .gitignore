@@ -34,3 +34,9 @@ _scrub-tmp/
 # OS
 .DS_Store
 Thumbs.db
+
+# Movie mining outputs contain verbatim subtitle dialogue / film audio --
+# local-only, never committed (see data-pipeline/movie_mining/README.md).
+data-pipeline/movie_mining/out/
+data-pipeline/seeds_subs_*.txt
+*.wav

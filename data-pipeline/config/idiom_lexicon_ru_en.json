@@ -1,5 +1,5 @@
 {
-  "_comment": "Starter RU<->EN idiom lexicon for the Detection Agent's idiom_lookup tool (agents/tools.py). Seeded 2026-09-20 from idioms that actually appeared in stage_a/stage_b batch 1-3 data plus this session's calibration notes -- NOT exhaustive. Expand by appending entries as new idioms turn up in future batches; each entry's 'literal_survives' field records the batch-3 finding that some idioms carry their full charge through a literal/direct translation (so has_subtext should be false) while others genuinely need the idiomatic gloss (has_subtext true). See config/calibration_guidelines.md for the full reasoning behind literal_survives.",
+  "_comment": "Starter RU<->EN idiom lexicon for the Detection Agent's idiom_lookup tool (agents/tools.py). Seeded 2026-09-20 from idioms that actually appeared in stage_a/stage_b batch 1-3 data plus the calibration notes from Stage B verification -- NOT exhaustive. Expand by appending entries as new idioms turn up in future batches; each entry's 'literal_survives' field records the batch-3 finding that some idioms carry their full charge through a literal/direct translation (so has_subtext should be false) while others genuinely need the idiomatic gloss (has_subtext true). See config/calibration_guidelines.md for the full reasoning behind literal_survives.",
   "entries": [
     {
       "ru": "какого чёрта",

@@ -1,0 +1,10 @@
+# Audio track (extract_dialogue.py, diarize.py, cut_clips.py, run_film.py).
+# Also needs ffmpeg/ffprobe on PATH.
+numpy>=1.24
+soundfile>=0.12
+demucs>=4.0                 # only used for stereo sources without a 5.1 center channel
+# Diarization (Nemotron 3). NeMo is best supported on Linux -- on Windows,
+# run diarize.py / run_film.py inside WSL2 Ubuntu with CUDA.
+Cython
+packaging
+nemo-toolkit[asr]

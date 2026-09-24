@@ -1,0 +1,10 @@
+# Subtitle-text miner (fetch_opensubtitles.py, mine_subtitles.py).
+# Install PyTorch with CUDA first for GPU speed: https://pytorch.org/get-started/locally/
+requests>=2.31.0
+numpy>=1.24
+sacrebleu>=2.4
+sentencepiece>=0.2          # opus-mt tokenizers
+transformers>=4.44
+sentence-transformers>=3.0  # LaBSE
+pymorphy3>=2.0              # ты/вы detection (maintained fork of pymorphy2)
+pymorphy3-dicts-ru
