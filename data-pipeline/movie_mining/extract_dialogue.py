@@ -2,7 +2,7 @@
 
     python -m movie_mining.extract_dialogue path/to/film.mkv
 
-Writes raw-media/work/<film>/:
+Writes <media root>/work/<film>/ (see paths.py):
   dialogue.wav     16 kHz mono dialogue stem
   background.wav   16 kHz mono music/effects stem (used to score noise later)
   ru.srt / en.srt  embedded text subtitle tracks, when the file has them
@@ -27,8 +27,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-PIPELINE_DIR = Path(__file__).resolve().parent.parent
-WORK_ROOT = PIPELINE_DIR / "raw-media" / "work"
+from .paths import WORK_ROOT
 SR = 16000
 TEXT_SUB_CODECS = {"subrip", "ass", "ssa", "mov_text", "webvtt", "text"}
 

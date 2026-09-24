@@ -46,9 +46,9 @@ from typing import Iterator
 from .cues import address_register, idiom_hits
 from .text_utils import clean_line, film_id_from_ids_line, is_multi_speaker, normalize_key, pair_passes
 
+from .paths import OPENSUBS_ZIP as DEFAULT_ZIP, PIPELINE_DIR
+
 HERE = Path(__file__).resolve().parent
-PIPELINE_DIR = HERE.parent
-DEFAULT_ZIP = PIPELINE_DIR / "raw-media" / "opensubtitles" / "en-ru.txt.zip"
 
 LABSE = "sentence-transformers/LaBSE"
 MT_MODELS = {"ru-en": "Helsinki-NLP/opus-mt-ru-en", "en-ru": "Helsinki-NLP/opus-mt-en-ru"}

@@ -2,7 +2,7 @@
 
     python -m movie_mining.fetch_opensubtitles            # from data-pipeline/
 
-Writes to raw-media/opensubtitles/ (gitignored). Resumable: re-running continues
+Writes to <media root>/opensubtitles/ (see paths.py; gitignored by default). Resumable: re-running continues
 a partial download. The zip holds three line-aligned files: .en, .ru and .ids
 (the .ids file identifies which film each line pair came from).
 
@@ -18,7 +18,7 @@ from pathlib import Path
 import requests
 
 DEFAULT_URL = "https://object.pouta.csc.fi/OPUS-OpenSubtitles/v2018/moses/en-ru.txt.zip"
-DEFAULT_OUT = Path(__file__).resolve().parent.parent / "raw-media" / "opensubtitles" / "en-ru.txt.zip"
+from .paths import OPENSUBS_ZIP as DEFAULT_OUT
 
 
 def download(url: str, dest: Path, chunk: int = 1 << 20) -> Path:

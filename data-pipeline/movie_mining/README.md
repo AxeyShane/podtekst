@@ -11,19 +11,36 @@ There are two tracks:
 | **Audio** | Your own film files + RU/EN subtitles | Clean single-speaker dialogue clips with subtitle text | ASR domain data and emotion2vec Russian validation (Phase 7) |
 
 **Rights:** mined lines, audio and clips hold verbatim film dialogue. They stay
-under `raw-media/`, `movie_mining/out/` and `seeds_subs_*.txt`, which are all
+in the media root (default `raw-media/`, or `D:\podtekst-mm\media`),
+`movie_mining/out/` and `seeds_subs_*.txt`, which are all outside git or
 gitignored. Never commit or share them.
 
 Run every command from `data-pipeline/`.
 
+## One-time setup (Windows)
+
+```powershell
+powershell -ExecutionPolicy Bypass -File data-pipeline\movie_mining\setup_windows.ps1
+```
+
+The script:
+
+- checks Python, the GPU, git and ffmpeg (installing ffmpeg via winget if
+  it's missing);
+- creates a venv and installs CUDA PyTorch plus everything below;
+- pre-downloads all models (~3 GB) and the OpenSubtitles zip (~1 GB);
+- runs the tests.
+
+If C: has less than 40 GB free and there's a D: drive, the venv, model
+caches and media all go to `D:\podtekst-mm` instead. Force either drive with
+`-Drive C` / `-Drive D`. The locations are saved as user environment variables
+(`PODTEKST_MEDIA_ROOT`, `HF_HOME`, `TORCH_HOME`), so every script finds them.
+Big files live under the **media root** (`paths.py`): `opensubtitles/`,
+`films/`, and `work/<film>/`.
+
 ## Text track
 
 ```powershell
-python -m venv .venv-mm; .\.venv-mm\Scripts\Activate.ps1
-# install CUDA PyTorch first: https://pytorch.org/get-started/locally/
-pip install -r movie_mining/requirements-text.txt
-
-python -m movie_mining.fetch_opensubtitles                       # ~1 GB zip, resumable
 python -m movie_mining.mine_subtitles --name subs1 --max-lines 3000000   # quick trial
 python -m movie_mining.mine_subtitles --name subs2                        # whole corpus
 ```
@@ -63,12 +80,9 @@ The main tuning knobs are `--min-align`, `--max-chrf`, `--min-span`,
 
 ## Audio track
 
-```bash
-# ffmpeg on PATH. NeMo (diarization) is best on Linux: on Windows use WSL2 Ubuntu + CUDA.
-pip install -r movie_mining/requirements-audio.txt
-
-python -m movie_mining.run_film raw-media/films/          # every video in the folder
-python -m movie_mining.run_film raw-media/films/x.mkv --ru-srt x.ru.srt --en-srt x.en.srt
+```powershell
+python -m movie_mining.run_film                          # every video in <media root>\films
+python -m movie_mining.run_film D:\films\x.mkv --ru-srt x.ru.srt --en-srt x.en.srt
 ```
 
 Sidecar subtitles named `film.ru.srt` and `film.en.srt` next to the video are
@@ -80,14 +94,18 @@ For each film:
 1. `extract_dialogue`: on 5.1 or 7.1 audio, take the **center channel**
    (dialogue) and FL+FR (background); on stereo, fall back to **Demucs**
    vocal separation. The Russian audio track is chosen by language tag.
-2. `diarize`: **Nemotron 3 Diarization** (`nvidia/Nemotron-3-Diarization`)
-   in its most accurate offline profile. Use `--chunk-minutes 10` if a whole
-   film runs out of GPU memory.
+2. `diarize`: **Nemotron 3 Diarization** (`nvidia/Nemotron-3-Diarization`).
+   There are two backends. `transformers` runs natively on Windows: it
+   processes 120 s windows and thresholds the model's per-frame speaker
+   probabilities into segments. `nemo` is the model card's reference path in
+   its most accurate offline profile. Use it inside WSL2 (see
+   `requirements-audio.txt`), and add `--chunk-minutes 10` if a whole film
+   runs out of GPU memory. `--backend auto` picks NeMo when it's installed.
 3. `cut_clips`: remove overlapping speech, keep 1–12 s pieces, and drop
    pieces with a speech-to-background ratio under 8 dB or near-silent ones.
    Attach RU/EN subtitle text.
 
-The output lands in `raw-media/work/<film>/`: `clips/*.wav` plus
+The output lands in `<media root>/work/<film>/`: `clips/*.wav` plus
 `manifest.jsonl`, with clip, speaker, times, level, ratio, ru_text and en_text.
 
 A few things to know before a big run:
@@ -103,8 +121,8 @@ A few things to know before a big run:
 
 Each step also runs on its own:
 `python -m movie_mining.extract_dialogue film.mkv`,
-`python -m movie_mining.diarize raw-media/work/<film>` and
-`python -m movie_mining.cut_clips raw-media/work/<film>`.
+`python -m movie_mining.diarize <media root>/work/<film>` and
+`python -m movie_mining.cut_clips <media root>/work/<film>`.
 
 ## Tests
 

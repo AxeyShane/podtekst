@@ -1,6 +1,6 @@
 """Step 3 of the audio track: clean single-speaker clips aligned to subtitles.
 
-    python -m movie_mining.cut_clips raw-media/work/<film>
+    python -m movie_mining.cut_clips <media root>/work/<film>
 
 Reads dialogue.wav, background.wav, segments.json (+ ru.srt / en.srt if
 present). For each diarized segment:
@@ -12,7 +12,7 @@ present). For each diarized segment:
   4. attach the RU/EN subtitle text that falls inside the piece.
 
 Writes clips/*.wav and manifest.jsonl in the work folder. Everything stays
-under raw-media/ (gitignored) -- never commit or share the clips.
+under the media root (see paths.py) -- never commit or share the clips.
 """
 from __future__ import annotations
 

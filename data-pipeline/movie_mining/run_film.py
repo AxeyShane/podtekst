@@ -1,6 +1,7 @@
 """Run the whole audio track on one film or a folder of films.
 
-    python -m movie_mining.run_film raw-media/films/            # every video in the folder
+    python -m movie_mining.run_film                             # every video in <media root>/films
+    python -m movie_mining.run_film D:\\films\\                   # or any folder
     python -m movie_mining.run_film film.mkv --ru-srt film.ru.srt --en-srt film.en.srt
 
 extract_dialogue -> diarize (Nemotron 3) -> cut_clips. Steps whose outputs
@@ -13,17 +14,21 @@ import argparse
 from pathlib import Path
 
 from . import cut_clips, diarize, extract_dialogue
+from .paths import FILMS_DIR
 
 VIDEO_EXT = {".mkv", ".mp4", ".avi", ".mov", ".m4v", ".ts", ".webm"}
 
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("path", type=Path, help="A video file or a folder of them")
+    ap.add_argument("path", type=Path, nargs="?", default=FILMS_DIR,
+                    help="A video file or a folder of them (default: <media root>/films)")
     ap.add_argument("--ru-srt", type=Path, default=None, help="External RU .srt (single-film runs)")
     ap.add_argument("--en-srt", type=Path, default=None, help="External EN .srt (single-film runs)")
     ap.add_argument("--device", default=None)
     ap.add_argument("--demucs", action="store_true", help="Force Demucs instead of the center channel")
+    ap.add_argument("--backend", choices=["auto", "nemo", "transformers"], default="auto",
+                    help="Diarization backend (auto: NeMo if installed, else transformers)")
     ap.add_argument("--chunk-minutes", type=float, default=0)
     ap.add_argument("--min-sbr", type=float, default=8.0)
     ap.add_argument("--no-require-subs", action="store_true")
@@ -45,9 +50,9 @@ def main() -> None:
 
     todo = [wd for wd in work_dirs if not (wd / "segments.json").exists()]
     if todo:
-        model = diarize.load_model(args.device)
+        diarizer = diarize.make_diarizer(args.backend, args.device, args.chunk_minutes)
         for wd in todo:
-            segs = diarize.diarize_file(model, wd / "dialogue.wav", args.chunk_minutes)
+            segs = diarizer.diarize(wd / "dialogue.wav")
             (wd / "segments.json").write_text(__import__("json").dumps(segs, indent=1), encoding="utf-8")
             print(f"{wd.name}: {len(segs)} segments")
     for wd in work_dirs:

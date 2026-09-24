@@ -67,6 +67,17 @@ class AudioTests(unittest.TestCase):
             self.assertGreater(a["sbr_db"], 20)
             self.assertTrue((wd / a["clip"]).exists())
 
+    def test_probs_to_segments(self):
+        import numpy as np
+        p = np.zeros((100, 2))              # 100 frames x 0.1 s = 10 s
+        p[10:40, 0] = 0.9                   # spk0 1.0-4.0 s
+        p[41:45, 0] = 0.9                   # 0.1 s gap -> bridged
+        p[35:70, 1] = 0.8                   # spk1 3.5-7.0 s
+        p[90:91, 1] = 0.9                   # 0.1 s blip -> dropped
+        segs = diarize.probs_to_segments(p, 0.1, offset=60.0, prefix="w0_")
+        self.assertEqual(segs, [{"start": 61.0, "end": 64.5, "speaker": "w0_0"},
+                                {"start": 63.5, "end": 67.0, "speaker": "w0_1"}])
+
     def test_overlap_and_srt_helpers(self):
         segs = [{"start": 0, "end": 5, "speaker": "0"}, {"start": 4, "end": 8, "speaker": "1"},
                 {"start": 6, "end": 7, "speaker": "0"}]
