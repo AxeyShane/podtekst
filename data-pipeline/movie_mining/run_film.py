@@ -17,12 +17,15 @@ from . import cut_clips, diarize, extract_dialogue
 from .paths import FILMS_DIR
 
 VIDEO_EXT = {".mkv", ".mp4", ".avi", ".mov", ".m4v", ".ts", ".webm"}
+# Audio-only files work too (stereo -> Demucs; no subtitles -> clips without text).
+AUDIO_EXT = {".mp3", ".m4a", ".aac", ".opus", ".ogg", ".flac", ".wav", ".mka"}
+MEDIA_EXT = VIDEO_EXT | AUDIO_EXT
 
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("path", type=Path, nargs="?", default=FILMS_DIR,
-                    help="A video file or a folder of them (default: <media root>/films)")
+                    help="A video/audio file or a folder of them (default: <media root>/films)")
     ap.add_argument("--ru-srt", type=Path, default=None, help="External RU .srt (single-film runs)")
     ap.add_argument("--en-srt", type=Path, default=None, help="External EN .srt (single-film runs)")
     ap.add_argument("--device", default=None)
@@ -34,10 +37,10 @@ def main() -> None:
     ap.add_argument("--no-require-subs", action="store_true")
     args = ap.parse_args()
 
-    films = sorted(p for p in args.path.iterdir() if p.suffix.lower() in VIDEO_EXT) if args.path.is_dir() \
+    films = sorted(p for p in args.path.iterdir() if p.suffix.lower() in MEDIA_EXT) if args.path.is_dir() \
         else [args.path]
     if not films:
-        raise SystemExit(f"No video files in {args.path}")
+        raise SystemExit(f"No video or audio files in {args.path}")
     work_dirs = []
     for film in films:
         wd = extract_dialogue.WORK_ROOT / film.stem
