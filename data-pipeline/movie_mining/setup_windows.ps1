@@ -102,30 +102,40 @@ Run $vpy -m pip install --no-cache-dir "gigaam @ git+https://github.com/salute-d
 # The model card installs transformers from git for Nemotron 3 Diarization support.
 Run $vpy -m pip install --no-cache-dir --upgrade "git+https://github.com/huggingface/transformers"
 
-Step "Installing whisper.cpp (CUDA build)"
+Step "Installing whisper.cpp (optional: only --asr whisper uses it; GigaAM is the default)"
 $WDir = if ($useD) { "$Base\whisper.cpp" } else { "$env:LOCALAPPDATA\podtekst\whisper.cpp" }
 $cli = Get-ChildItem -Path $WDir -Recurse -Filter "whisper-cli.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
 if (-not $cli) {
-    $rel = Invoke-RestMethod "https://api.github.com/repos/ggml-org/whisper.cpp/releases/latest" -Headers @{ "User-Agent" = "podtekst-setup" }
-    $zips = $rel.assets | Where-Object { $_.name -like "*.zip" -and $_.name -match "x64" }
-    $asset = $zips | Where-Object { $_.name -match "cublas|cuda" -and $_.name -match "12" } | Sort-Object name -Descending | Select-Object -First 1
-    if (-not $asset) {
-        Write-Warning "No CUDA 12 Windows build in $($rel.tag_name) -- using the CPU build (slower)."
-        $asset = $zips | Where-Object { $_.name -notmatch "cublas|cuda|arm" } | Select-Object -First 1
+    # Tagged releases sometimes ship without binaries, so walk the list (newest first,
+    # CI prereleases included) and take the first one with a Windows x64 zip.
+    $rel = $null; $asset = $null
+    try {
+        $releases = Invoke-RestMethod "https://api.github.com/repos/ggml-org/whisper.cpp/releases?per_page=30" -Headers @{ "User-Agent" = "podtekst-setup" }
+    } catch { $releases = @(); Write-Warning "Could not list whisper.cpp releases: $_" }
+    foreach ($r in $releases) {
+        $zips = $r.assets | Where-Object { $_.name -like "*.zip" -and $_.name -match "x64" }
+        $asset = $zips | Where-Object { $_.name -match "cublas|cuda" -and $_.name -match "-12\." } | Sort-Object name -Descending | Select-Object -First 1
+        if (-not $asset) { $asset = $zips | Where-Object { $_.name -notmatch "cublas|cuda|arm" } | Select-Object -First 1 }
+        if ($asset) { $rel = $r; break }
     }
-    if (-not $asset) { throw "No Windows x64 whisper.cpp build found in release $($rel.tag_name)" }
-    Write-Host "Downloading $($asset.name) ($($rel.tag_name))"
-    New-Item -ItemType Directory -Force -Path $WDir | Out-Null
-    $zip = Join-Path $WDir $asset.name
-    Invoke-WebRequest $asset.browser_download_url -OutFile $zip
-    Expand-Archive $zip -DestinationPath $WDir -Force
-    Remove-Item $zip
-    $cli = Get-ChildItem -Path $WDir -Recurse -Filter "whisper-cli.exe" | Select-Object -First 1
+    if ($asset) {
+        if ($asset.name -notmatch "cublas|cuda") { Write-Warning "No CUDA 12 build in $($rel.tag_name) -- using the CPU build (slower)." }
+        Write-Host "Downloading $($asset.name) ($($rel.tag_name))"
+        New-Item -ItemType Directory -Force -Path $WDir | Out-Null
+        $zip = Join-Path $WDir $asset.name
+        Invoke-WebRequest $asset.browser_download_url -OutFile $zip
+        Expand-Archive $zip -DestinationPath $WDir -Force
+        Remove-Item $zip
+        $cli = Get-ChildItem -Path $WDir -Recurse -Filter "whisper-cli.exe" | Select-Object -First 1
+    }
 }
-if (-not $cli) { throw "whisper-cli.exe not found after install in $WDir" }
-[Environment]::SetEnvironmentVariable("WHISPER_CPP_BIN", $cli.FullName, "User")
-$env:WHISPER_CPP_BIN = $cli.FullName
-Write-Host "whisper-cli: $($cli.FullName)"
+if ($cli) {
+    [Environment]::SetEnvironmentVariable("WHISPER_CPP_BIN", $cli.FullName, "User")
+    $env:WHISPER_CPP_BIN = $cli.FullName
+    Write-Host "whisper-cli: $($cli.FullName)"
+} else {
+    Write-Warning "whisper.cpp not installed -- --asr whisper won't work; GigaAM (the default) is unaffected."
+}
 
 Step "GPU check"
 Run $vpy -c "import torch; print('CUDA available:', torch.cuda.is_available(), '|', torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'CPU only')"
