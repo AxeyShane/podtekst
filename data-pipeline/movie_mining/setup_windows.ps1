@@ -128,7 +128,7 @@ $env:WHISPER_CPP_BIN = $cli.FullName
 Write-Host "whisper-cli: $($cli.FullName)"
 
 Step "GPU check"
-& $vpy -c "import torch; print('CUDA available:', torch.cuda.is_available(), '|', torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'CPU only')"
+Run $vpy -c "import torch; print('CUDA available:', torch.cuda.is_available(), '|', torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'CPU only')"
 
 Step "Downloading models$(if (-not $SkipData) { ' + OpenSubtitles' })"
 Push-Location $DP
