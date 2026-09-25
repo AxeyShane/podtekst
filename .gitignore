@@ -43,4 +43,5 @@ data-pipeline/seeds_subs_*.txt
 data-pipeline/seeds_*_film.txt
 data-pipeline/seeds_*_subs.txt
 data-pipeline/seeds_batch6.txt
+data-pipeline/seeds_batch6b.txt
 *.wav
