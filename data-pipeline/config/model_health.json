@@ -17,9 +17,17 @@
     "last_failure_rate": 0.027586206896551724
   },
   "google/gemini-3.8-flash": {
-    "consecutive_bad_runs": 1,
+    "consecutive_bad_runs": 0,
     "disabled": false,
     "last_bad_run": "stage_a_batch4.jsonl",
     "last_failure_rate": 0.036036036036036036
+  },
+  "z-ai/glm-5.3-flash": {
+    "consecutive_bad_runs": 0,
+    "disabled": false
+  },
+  "minimax/minimax-m3": {
+    "consecutive_bad_runs": 0,
+    "disabled": false
   }
 }
