@@ -66,9 +66,26 @@ def collect(work_root: Path, avoid: set[str], min_words: int = 4, max_words: int
     return by_film
 
 
-def sample(by_film: dict[str, list[dict]], n: int, per_film: int, rng: random.Random) -> list[dict]:
-    """Round-robin across films (shuffled within each), at most per_film each, until n."""
-    pools = {f: rng.sample(rows, len(rows))[:per_film] for f, rows in by_film.items()}
+def preferred(text: str, prefer: re.Pattern | None, prefer_address: bool) -> bool:
+    if prefer is not None and prefer.search(text):
+        return True
+    if prefer_address:
+        from .cues import address_register
+        return address_register(text) is not None
+    return False
+
+
+def sample(by_film: dict[str, list[dict]], n: int, per_film: int, rng: random.Random,
+           prefer: re.Pattern | None = None, prefer_address: bool = False) -> list[dict]:
+    """Round-robin across films, at most per_film each, until n. Within a film, lines matching
+    `prefer` (or with ты/вы address when prefer_address) come first, the rest fill any slots left;
+    both groups are shuffled. Every picked row gets "preferred": bool."""
+    pools = {}
+    for f, rows in by_film.items():
+        rows = rng.sample(rows, len(rows))
+        for r in rows:
+            r["preferred"] = preferred(r["seed"], prefer, prefer_address)
+        pools[f] = ([r for r in rows if r["preferred"]] + [r for r in rows if not r["preferred"]])[:per_film][::-1]
     out = []
     while len(out) < n and any(pools.values()):
         for film in sorted(pools):
@@ -87,10 +104,16 @@ def main() -> None:
     ap.add_argument("--avoid", default="", help="Comma-separated globs of earlier seed files to dedupe against")
     ap.add_argument("--work-root", type=Path, default=WORK_ROOT)
     ap.add_argument("--seed", type=int, default=6)
+    ap.add_argument("--prefer", default=None,
+                    help="Regex (case-insensitive): draw matching lines first within each film, e.g. emotion vocabulary")
+    ap.add_argument("--prefer-address", action="store_true", help="Also draw lines with ты/вы address first")
     args = ap.parse_args()
 
     by_film = collect(args.work_root, load_avoid(args.avoid), args.min_words, args.max_words)
-    picked = sample(by_film, args.n, args.per_film, random.Random(args.seed))
+    prefer = re.compile(args.prefer, re.IGNORECASE) if args.prefer else None
+    picked = sample(by_film, args.n, args.per_film, random.Random(args.seed), prefer, args.prefer_address)
+    if prefer or args.prefer_address:
+        print(f"preferred (vocabulary/address) lines: {sum(r['preferred'] for r in picked)}/{len(picked)}")
     with open(args.out, "w", encoding="utf-8") as f:
         f.writelines(r["seed"] + "\n" for r in picked)
     meta = Path(args.out).with_suffix(".meta.jsonl")

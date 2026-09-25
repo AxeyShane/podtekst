@@ -82,6 +82,7 @@ class TextTests(unittest.TestCase):
                     ("Я знаю, что делать.", "I knoƒ what to do."): "mojibake",      # ƒ in EN
                     ("О, о-о-о, ну.", "Oh, oh-oh-oh, well."): "interjection",
                     ("Хе-хе-хе.", "Heh- heh-heh ."): "interjection",
+                    ("О-хо-хо-хо, ну.", "O-ho-ho-ho, well."): "interjection",
                     ("Не-не-не!", "No-no - no !"): "interjection",
                     ('"Б, А". "Б, А".', '"B , A". "B , A".'): "interjection"}
         for (ru, en), why in rejected.items():
@@ -117,6 +118,15 @@ class TextTests(unittest.TestCase):
             picked = fs.sample(by_film, n=20, per_film=10, rng=random.Random(0))
             per = {f: sum(r["film"] == f for r in picked) for f in by_film}
             self.assertEqual(per, {"big": 10, "small": 2})                         # cap + nothing lost
+
+            # Preference: in "big", only lines 0-4 mention обида; they must be drawn before the rest.
+            for r in by_film["big"][:5]:
+                r["seed"] = r["seed"].replace("Это реплика", "Какая обида, реплика")
+            import re as _re
+            picked = fs.sample(by_film, n=6, per_film=3, rng=random.Random(0), prefer=_re.compile("обид", _re.I))
+            big = [r for r in picked if r["film"] == "big"]
+            self.assertEqual(len(big), 3)
+            self.assertTrue(all(r["preferred"] and "обида" in r["seed"] for r in big))
 
     def test_cues(self):
         self.assertEqual(address_register("Я тебе говорил"), "ty")

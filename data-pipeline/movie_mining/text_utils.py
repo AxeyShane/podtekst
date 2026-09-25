@@ -58,7 +58,7 @@ _EN_FOREIGN = re.compile(r"[^\W\d_A-Za-zÀ-ÖØ-öø-ÿ]")
 
 # Sounds and filler that make a line "divergent" from MT without carrying any meaning.
 _INTERJECTIONS = {
-    "о", "ох", "ах", "ай", "ой", "эй", "ух", "уф", "ха", "хе", "хи", "хм", "м", "мм", "ммм", "а", "э", "у", "ну",
+    "о", "ох", "ах", "ай", "ой", "эй", "ух", "уф", "ха", "хе", "хи", "хо", "хм", "м", "мм", "ммм", "а", "э", "у", "ну",
     "ага", "угу", "эх", "фу", "тсс", "бр", "не", "нет", "да", "стоп",
     "oh", "ah", "aah", "ooh", "uh", "um", "hm", "hmm", "mm", "eh", "ha", "heh", "hey", "huh", "wow", "whoa",
     "no", "yes", "yeah", "stop", "o",
