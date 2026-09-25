@@ -13,7 +13,8 @@ Method, in order of preference:
     most music/effects in the other channels, so this is nearly clean for free.
     Background = FL+FR.
   * Stereo/mono  -> Demucs (htdemucs, two-stem vocals). Heavier, needs the
-    audio extras (see requirements-audio.txt).
+    audio extras (see requirements-audio.txt). Runs on 20-minute chunks whose
+    stems are concatenated, so multi-hour files fit in RAM.
 
 The Russian audio track is picked by language tag (rus/ru) when the file has
 several; override with --audio-stream.
@@ -75,19 +76,59 @@ def extract_center(src: Path, a_idx: int, out_dir: Path) -> None:
     _run(common + ["-af", "pan=mono|c0=0.5*FL+0.5*FR", str(out_dir / "background.wav")])
 
 
-def extract_demucs(src: Path, a_idx: int, out_dir: Path, device: str | None) -> None:
+def duration(path: Path) -> float:
+    return float(_run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of",
+                       "default=nw=1:nk=1", str(path)]).strip())
+
+
+def chunk_spans(total: float, chunk_s: float) -> list[tuple[float, float]]:
+    """[(start, length)] covering 0..total in chunk_s pieces; a short tail (under a minute, or a
+    quarter chunk for tiny chunks) joins the last piece instead of becoming its own Demucs run."""
+    spans, start = [], 0.0
+    min_tail = min(60.0, chunk_s / 4)
+    while start < total:
+        length = min(chunk_s, total - start)
+        if spans and length < min_tail:
+            s, l = spans[-1]
+            spans[-1] = (s, l + length)
+            break
+        spans.append((start, length))
+        start += length
+    return spans
+
+
+def extract_demucs(src: Path, a_idx: int, out_dir: Path, device: str | None, chunk_minutes: float = 20) -> None:
+    """Demucs on chunk_minutes pieces, stems joined afterwards: Demucs holds the whole input (and its
+    outputs) in RAM, so a multi-hour file would exhaust memory in one go. Only one chunk's 44.1 kHz
+    stereo audio sits in the temp dir at a time.
+    ponytail: hard cuts, no overlap -- a word split at a chunk edge can lose a few ms of separation
+    quality; add overlap + crossfade if clips at the ~20-min marks turn out damaged."""
+    spans = chunk_spans(duration(src), chunk_minutes * 60)
     with tempfile.TemporaryDirectory() as tmp:
         tmp = Path(tmp)
-        stereo = tmp / "mix.wav"
-        _run(["ffmpeg", "-v", "error", "-y", "-i", str(src), "-map", f"0:a:{a_idx}", "-ac", "2", "-ar", "44100",
-              str(stereo)])
-        cmd = [sys.executable, "-m", "demucs", "--two-stems", "vocals", "-n", "htdemucs", "-o", str(tmp / "sep")]
-        if device:
-            cmd += ["-d", device]
-        _run(cmd + [str(stereo)])
-        stem_dir = tmp / "sep" / "htdemucs" / "mix"
-        for stem, name in (("vocals", "dialogue"), ("no_vocals", "background")):
-            _run(["ffmpeg", "-v", "error", "-y", "-i", str(stem_dir / f"{stem}.wav"), "-ac", "1", "-ar", str(SR),
+        parts: dict[str, list[Path]] = {"dialogue": [], "background": []}
+        for i, (start, length) in enumerate(spans):
+            stereo = tmp / f"mix{i}.wav"
+            _run(["ffmpeg", "-v", "error", "-y", "-ss", f"{start:.3f}", "-t", f"{length:.3f}", "-i", str(src),
+                  "-map", f"0:a:{a_idx}", "-ac", "2", "-ar", "44100", str(stereo)])
+            cmd = [sys.executable, "-m", "demucs", "--two-stems", "vocals", "-n", "htdemucs", "-o", str(tmp / "sep")]
+            if device:
+                cmd += ["-d", device]
+            _run(cmd + [str(stereo)])
+            stem_dir = tmp / "sep" / "htdemucs" / stereo.stem
+            for stem, name in (("vocals", "dialogue"), ("no_vocals", "background")):
+                part = tmp / f"{name}{i}.wav"
+                _run(["ffmpeg", "-v", "error", "-y", "-i", str(stem_dir / f"{stem}.wav"), "-ac", "1", "-ar", str(SR),
+                      str(part)])
+                parts[name].append(part)
+            stereo.unlink(missing_ok=True)
+            shutil.rmtree(stem_dir, ignore_errors=True)
+            if len(spans) > 1:
+                print(f"  demucs chunk {i + 1}/{len(spans)}")
+        for name, files in parts.items():
+            listing = tmp / f"{name}.txt"
+            listing.write_text("".join(f"file '{p.as_posix()}'\n" for p in files), encoding="utf-8")
+            _run(["ffmpeg", "-v", "error", "-y", "-f", "concat", "-safe", "0", "-i", str(listing), "-c", "copy",
                   str(out_dir / f"{name}.wav")])
 
 

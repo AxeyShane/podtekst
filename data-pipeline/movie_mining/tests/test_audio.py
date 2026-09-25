@@ -109,10 +109,55 @@ class DemucsTests(unittest.TestCase):
     def test_runs_in_current_interpreter(self):
         # A bare "python" resolves to whatever is first on PATH, which may lack demucs.
         from unittest import mock
-        with mock.patch.object(extract_dialogue, "_run") as run:
-            extract_dialogue.extract_demucs(Path("film.m4a"), 0, Path("out"), None)
+        with tempfile.TemporaryDirectory() as d, mock.patch.object(extract_dialogue, "_run") as run, \
+                mock.patch.object(extract_dialogue, "duration", return_value=600.0):
+            extract_dialogue.extract_demucs(Path("film.m4a"), 0, Path(d), None)
         demucs = next(c.args[0] for c in run.call_args_list if "demucs" in c.args[0])
         self.assertEqual(demucs[:3], [sys.executable, "-m", "demucs"])
+
+    def test_chunk_spans(self):
+        spans = extract_dialogue.chunk_spans
+        self.assertEqual(spans(3000, 1200), [(0, 1200), (1200, 1200), (2400, 600)])
+        self.assertEqual(spans(2430, 1200), [(0, 1200), (1200, 1230)])          # 30 s tail joins the last chunk
+        self.assertEqual(spans(500, 1200), [(0, 500)])
+
+    @unittest.skipUnless(shutil.which("ffmpeg"), "ffmpeg not installed")
+    def test_chunked_demucs_concatenates_in_order(self):
+        """Real ffmpeg, fake Demucs (copies the mix to both stems): 3.5 s of rising-amplitude tone in
+        1 s chunks must come back as one 3.5 s stem, still rising."""
+        import numpy as np
+        import soundfile as sf
+        from unittest import mock
+        real_run = extract_dialogue._run
+        demucs_calls = []
+
+        def run(cmd):
+            if "demucs" in cmd:
+                demucs_calls.append(cmd)
+                mix = Path(cmd[-1])
+                stem_dir = Path(cmd[cmd.index("-o") + 1]) / "htdemucs" / mix.stem
+                stem_dir.mkdir(parents=True)
+                for stem in ("vocals", "no_vocals"):
+                    shutil.copyfile(mix, stem_dir / f"{stem}.wav")
+                return ""
+            return real_run(cmd)
+
+        with tempfile.TemporaryDirectory() as d:
+            tmp = Path(d)
+            src = tmp / "long.m4a"
+            subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i",
+                            "aevalsrc='0.2*t*sin(2*PI*440*t)':s=44100:d=3.5:c=stereo", str(src)], check=True)
+            with mock.patch.object(extract_dialogue, "_run", side_effect=run):
+                extract_dialogue.extract_demucs(src, 0, tmp, None, chunk_minutes=1 / 60)
+            expected = extract_dialogue.chunk_spans(extract_dialogue.duration(src), 1.0)  # AAC pads a little
+            self.assertGreaterEqual(len(expected), 3)
+            self.assertEqual(len(demucs_calls), len(expected))
+            for name in ("dialogue", "background"):
+                audio, sr = sf.read(tmp / f"{name}.wav")
+                self.assertEqual(sr, extract_dialogue.SR)
+                self.assertAlmostEqual(len(audio) / sr, 3.5, delta=0.1)
+                rms = [float(np.sqrt(np.mean(audio[int(i * sr):int((i + 1) * sr)] ** 2))) for i in range(3)]
+                self.assertTrue(rms[0] < rms[1] < rms[2], rms)                   # chunks joined in order
 
 
 class CrossCheckTests(unittest.TestCase):
