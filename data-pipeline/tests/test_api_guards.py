@@ -39,7 +39,7 @@ class BalanceGuardTests(unittest.TestCase):
         with mock.patch.object(sa.requests, "get") as get, mock.patch.object(sa.time, "sleep"):
             get.return_value.json.side_effect = lambda: {"data": {"total_credits": 10.0,
                                                                   "total_usage": 10.0 - next(balances)}}
-            results, failures, *_ = sa.generate(seeds, GENS, "k", sleep=0, call=ok_call)
+            results, failures, *_ = sa.generate(seeds, GENS, "k", sleep=0, call=ok_call, parallel=False)
         self.assertEqual(len(results), 25 * 2)                          # first chunk only
         self.assertEqual(len(failures), 35 * 2)                         # every unprocessed pair recorded
         self.assertEqual({f["source_text"] for f in failures}, set(seeds[25:]))
@@ -63,7 +63,8 @@ class BalanceGuardTests(unittest.TestCase):
                 raise sa.OutOfCredits("HTTP 402")
             return ok_call(sentence, slug, api_key)
         results, failures, _, consecutive, tripped = sa.generate(
-            ["s0", "s1", "s2"], GENS, "k", sleep=0, call=broke_after_3, check_balance=lambda _: True)
+            ["s0", "s1", "s2"], GENS, "k", sleep=0, call=broke_after_3, check_balance=lambda _: True,
+            parallel=False)
         self.assertEqual(len(calls), 4)                                  # no calls after the 402
         self.assertEqual(len(results), 3)
         self.assertEqual(len(failures), 3)                               # s1/model b, s2/a, s2/b
@@ -94,7 +95,7 @@ class RateLimitTests(unittest.TestCase):
             return ok_call(sentence, slug, api_key)
         seeds = [f"seed {i}" for i in range(10)]                         # 10 > breaker threshold of 4
         results, failures, _, consecutive, tripped = sa.generate(
-            seeds, GENS, "k", sleep=0, call=a_is_rate_limited, check_balance=lambda _: True)
+            seeds, GENS, "k", sleep=0, call=a_is_rate_limited, check_balance=lambda _: True, parallel=False)
         self.assertEqual(tripped, set())
         self.assertEqual(consecutive["model/a"], 0)
         self.assertEqual(len(failures), 10)                              # kept for a later retry...
@@ -107,9 +108,60 @@ class RateLimitTests(unittest.TestCase):
                 raise RuntimeError("HTTP 500 from OpenRouter")
             return ok_call(sentence, slug, api_key)
         _, failures, _, _, tripped = sa.generate([f"s{i}" for i in range(6)], GENS, "k", sleep=0,
-                                                 call=a_broken, check_balance=lambda _: True)
+                                                 call=a_broken, check_balance=lambda _: True, parallel=False)
         self.assertEqual(tripped, {"model/a"})
         self.assertEqual(sum(sa.is_model_failure(f) for f in failures), 4)   # 4 real, then skipped
+
+
+class ParallelResumeTests(unittest.TestCase):
+    def test_generators_run_concurrently_per_seed(self):
+        import threading
+        import time as _time
+        gens = [{"slug": f"model/{c}", "provider": {"order": [c]}} for c in "abcd"]
+        live, peak, lock, routed = [0], [0], threading.Lock(), []
+
+        def slow_call(sentence, slug, api_key, provider=None, api_model=None):
+            with lock:
+                live[0] += 1
+                peak[0] = max(peak[0], live[0])
+                routed.append((slug, provider))
+            _time.sleep(0.05)
+            with lock:
+                live[0] -= 1
+            return ok_call(sentence, slug, api_key)
+        written = []
+        results, failures, *_ = sa.generate([f"s{i}" for i in range(3)], gens, "k", sleep=0, call=slow_call,
+                                            check_balance=lambda _: True, on_result=written.append)
+        self.assertEqual(peak[0], 4)                                      # all 4 models at once
+        self.assertEqual(len(results), 12)
+        self.assertEqual(written, results)                                # every row streamed out
+        self.assertEqual([r["_generator_model"] for r in results[:4]], [g["slug"] for g in gens])  # roster order
+        self.assertIn(("model/c", {"order": ["c"]}), routed)              # provider routing passed through
+        self.assertFalse(failures)
+
+    def test_resume_skips_pairs_already_done(self):
+        calls = []
+
+        def rec(sentence, slug, api_key, **kw):
+            calls.append((sentence, slug))
+            return ok_call(sentence, slug, api_key)
+        done = {("s0", "model/a"), ("s0", "model/b"), ("s1", "model/a")}
+        results, *_ = sa.generate(["s0", "s1"], GENS, "k", sleep=0, call=rec, check_balance=lambda _: True,
+                                  done=done)
+        self.assertEqual(calls, [("s1", "model/b")])
+        self.assertEqual(len(results), 1)
+
+    def test_retry_uses_roster_routing(self):
+        seen = []
+
+        def rec(sentence, slug, api_key, provider=None, api_model=None):
+            seen.append((slug, provider, api_model))
+            return ok_call(sentence, slug, api_key)
+        routing = {"model/a": {"slug": "model/a", "provider": {"order": ["x"]}},
+                   "model/b": {"slug": "model/b", "api_model": "model/b:floor"}}
+        rf.retry_pairs([("s", "model/a"), ("s", "model/b")], "k", sleep=0, call=rec,
+                       check_balance=lambda _: True, routing=routing)
+        self.assertEqual(seen, [("model/a", {"order": ["x"]}, None), ("model/b", None, "model/b:floor")])
 
 
 def _raise_or_ok(responses, args):

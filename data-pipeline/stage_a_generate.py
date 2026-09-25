@@ -216,62 +216,90 @@ def is_model_failure(row: dict) -> bool:
 
 
 def generate(seeds, generators, api_key, breaker_threshold=CIRCUIT_BREAKER_CONSECUTIVE, sleep=0.5,
-             min_balance=MIN_BALANCE_USD, chunk=GUARD_CHUNK, call=None, check_balance=None):
-    """Runs every (seed, generator) pair. Returns (results, failures, call_count,
-    consecutive_fail, breaker_tripped). call / check_balance are injectable for tests."""
+             min_balance=MIN_BALANCE_USD, chunk=GUARD_CHUNK, call=None, check_balance=None,
+             done=frozenset(), on_result=None, parallel=True):
+    """Runs every (seed, generator) pair; per seed, the generators are called concurrently (one
+    thread each -- they're separate models/providers, and 429s back off on their own). Pairs in
+    `done` ({(source_text, slug)}, from --resume) are skipped. on_result(row) is called for every
+    success as it arrives, so the output file grows incrementally. Returns (results, failures,
+    call_count, consecutive_fail, breaker_tripped). call / check_balance are injectable for tests."""
+    from concurrent.futures import ThreadPoolExecutor
     call = call or call_model_with_retry
     check_balance = check_balance or (lambda label: balance_ok(api_key, min_balance, label))
     results, failures = [], []
     call_count, total_calls = 0, len(seeds) * len(generators)
     consecutive_fail = {g["slug"]: 0 for g in generators}
     breaker_tripped = set()
+    pool = ThreadPoolExecutor(max_workers=max(1, len(generators))) if parallel else None
 
     def skip_rest(from_seed: int, reason: str):
         for s in seeds[from_seed:]:
             for g in generators:
-                failures.append({"source_text": s, "model": g["slug"], "error": reason})
+                if (s, g["slug"]) not in done:
+                    failures.append({"source_text": s, "model": g["slug"], "error": reason})
 
-    for i, sentence in enumerate(seeds):
-        if i % chunk == 0 and not check_balance(f"seeds {i + 1}-{min(i + chunk, len(seeds))}"):
-            skip_rest(i, f"skipped -- balance guard stopped the run before seed {i + 1}")
-            break
-        for j, generator in enumerate(generators):
-            call_count += 1
-            slug = generator["slug"]
-            if slug in breaker_tripped:
-                failures.append({
-                    "source_text": sentence, "model": slug,
-                    "error": f"skipped -- circuit breaker tripped after "
-                             f"{breaker_threshold} consecutive failures this run",
-                })
-                print(f"[{call_count}/{total_calls}] SKIP model={slug}  (circuit breaker tripped)")
-                continue
-            try:
-                annotated = call(sentence, slug, api_key,
-                                 provider=generator.get("provider"), api_model=generator.get("api_model"))
-                results.append(annotated)
-                consecutive_fail[slug] = 0
-                print(f"[{call_count}/{total_calls}] ok   model={slug}  "
-                      f"has_subtext={annotated.get('has_subtext')}")
-            except RateLimited as e:
-                failures.append({"source_text": sentence, "model": slug, "error": f"rate limited -- {e}"})
-                print(f"[{call_count}/{total_calls}] RATE-LIMITED model={slug} (retry later, not a model failure)")
-            except OutOfCredits as e:
-                print(f"[{call_count}/{total_calls}] OUT OF CREDITS -- stopping cleanly: {e}")
-                for g in generators[j:]:
-                    failures.append({"source_text": sentence, "model": g["slug"], "error": f"out of credits -- {e}"})
+    def attempt(sentence, generator):
+        try:
+            return call(sentence, generator["slug"], api_key,
+                        provider=generator.get("provider"), api_model=generator.get("api_model")), None
+        except Exception as e:                    # returned, not raised, so every thread reports back
+            return None, e
+
+    try:
+        for i, sentence in enumerate(seeds):
+            if i % chunk == 0 and not check_balance(f"seeds {i + 1}-{min(i + chunk, len(seeds))}"):
+                skip_rest(i, f"skipped -- balance guard stopped the run before seed {i + 1}")
+                break
+            todo = []
+            for generator in generators:
+                slug = generator["slug"]
+                call_count += 1
+                if (sentence, slug) in done:
+                    continue
+                if slug in breaker_tripped:
+                    failures.append({
+                        "source_text": sentence, "model": slug,
+                        "error": f"skipped -- circuit breaker tripped after "
+                                 f"{breaker_threshold} consecutive failures this run",
+                    })
+                    print(f"[{call_count}/{total_calls}] SKIP model={slug}  (circuit breaker tripped)")
+                    continue
+                todo.append((call_count, generator))
+            outcomes = (list(pool.map(lambda t: attempt(sentence, t[1]), todo)) if pool
+                        else [attempt(sentence, g) for _, g in todo])
+            # Bookkeeping in roster order, after all of this seed's calls are back.
+            out_of_credits = None
+            for (n, generator), (annotated, err) in zip(todo, outcomes):
+                slug = generator["slug"]
+                if err is None:
+                    results.append(annotated)
+                    if on_result:
+                        on_result(annotated)
+                    consecutive_fail[slug] = 0
+                    print(f"[{n}/{total_calls}] ok   model={slug}  has_subtext={annotated.get('has_subtext')}")
+                elif isinstance(err, RateLimited):
+                    failures.append({"source_text": sentence, "model": slug, "error": f"rate limited -- {err}"})
+                    print(f"[{n}/{total_calls}] RATE-LIMITED model={slug} (retry later, not a model failure)")
+                elif isinstance(err, OutOfCredits):
+                    failures.append({"source_text": sentence, "model": slug, "error": f"out of credits -- {err}"})
+                    out_of_credits = err
+                else:
+                    failures.append({"source_text": sentence, "model": slug, "error": str(err)})
+                    consecutive_fail[slug] += 1
+                    print(f"[{n}/{total_calls}] FAILED model={slug}: {err}")
+                    if consecutive_fail[slug] >= breaker_threshold:
+                        breaker_tripped.add(slug)
+                        print(f"    !! {slug} hit {breaker_threshold} consecutive failures -- "
+                              f"excluding it from the rest of this run (remaining seeds recorded "
+                              f"as failures for retry, not attempted).")
+            if out_of_credits:
+                print(f"OUT OF CREDITS -- stopping cleanly: {out_of_credits}")
                 skip_rest(i + 1, "out of credits -- run stopped on HTTP 402")
-                return results, failures, call_count, consecutive_fail, breaker_tripped
-            except Exception as e:
-                failures.append({"source_text": sentence, "model": slug, "error": str(e)})
-                consecutive_fail[slug] += 1
-                print(f"[{call_count}/{total_calls}] FAILED model={slug}: {e}")
-                if consecutive_fail[slug] >= breaker_threshold:
-                    breaker_tripped.add(slug)
-                    print(f"    !! {slug} hit {breaker_threshold} consecutive failures -- "
-                          f"excluding it from the rest of this run (remaining seeds recorded "
-                          f"as failures for retry, not attempted).")
+                break
             time.sleep(sleep)
+    finally:
+        if pool:
+            pool.shutdown()
     return results, failures, call_count, consecutive_fail, breaker_tripped
 
 
@@ -293,6 +321,13 @@ def main():
                          help="Stop cleanly (unprocessed pairs -> --failures, exit 0) when the "
                               f"OpenRouter balance drops under this many USD (default {MIN_BALANCE_USD}); "
                               f"checked before every {GUARD_CHUNK} seeds.")
+    parser.add_argument("--models", default=None,
+                         help="Comma-separated slugs: only run these roster models (e.g. to backfill "
+                              "models added after a batch was generated)")
+    parser.add_argument("--resume", action="store_true",
+                         help="Keep the existing --out file and skip (seed, model) pairs already in it")
+    parser.add_argument("--sequential", action="store_true",
+                         help="Call the generators one at a time instead of concurrently per seed")
     args = parser.parse_args()
 
     api_key = os.environ.get("OPENROUTER_API_KEY")
@@ -306,19 +341,34 @@ def main():
         print("Auto-disabled generators, excluded from this run (see config/model_health.json):")
         for slug, reason in skipped:
             print(f"  - {slug}: {reason}")
+    if args.models:
+        wanted = {s.strip() for s in args.models.split(",") if s.strip()}
+        unknown = wanted - {g["slug"] for g in generators}
+        if unknown:
+            raise SystemExit(f"--models not in the active roster: {sorted(unknown)}")
+        generators = [g for g in generators if g["slug"] in wanted]
     seeds = load_seeds(args.seeds)
+    done = set()
+    if args.resume and os.path.exists(args.out):
+        with open(args.out, encoding="utf-8") as f:
+            for line in f:
+                if line.strip():
+                    row = json.loads(line)
+                    done.add((row.get("source_text"), row.get("_generator_model")))
+        print(f"Resuming: {len(done)} (seed, model) pairs already in {args.out} will be skipped.")
     print(f"Loaded {len(seeds)} seeds, {len(generators)} active generator models.")
-    print(f"Total calls to make: {len(seeds) * len(generators)}")
+    print(f"Total calls to make: {len(seeds) * len(generators) - len(done)}")
 
-    results, failures, call_count, consecutive_fail, breaker_tripped = generate(
-        seeds, generators, api_key, breaker_threshold=args.breaker_threshold, sleep=args.sleep,
-        min_balance=args.min_balance)
+    # Rows are appended as they arrive, so an interrupted run keeps what it paid for (--resume).
+    with open(args.out, "a" if args.resume else "w", encoding="utf-8") as out:
+        def write_row(row):
+            out.write(json.dumps(row, ensure_ascii=False) + "\n")
+            out.flush()
+        results, failures, call_count, consecutive_fail, breaker_tripped = generate(
+            seeds, generators, api_key, breaker_threshold=args.breaker_threshold, sleep=args.sleep,
+            min_balance=args.min_balance, done=done, on_result=write_row, parallel=not args.sequential)
 
-    with open(args.out, "w", encoding="utf-8") as f:
-        for row in results:
-            f.write(json.dumps(row, ensure_ascii=False) + "\n")
-
-    print(f"\nDone. Wrote {len(results)} candidate rows to {args.out}. {len(failures)} failures.")
+    print(f"\nDone. Wrote {len(results)} new candidate rows to {args.out}. {len(failures)} failures.")
 
     newly_disabled = []
     for generator in generators:

@@ -63,10 +63,12 @@ def load_seed_list_for_model(path, model_slug):
 
 
 def retry_pairs(pairs, api_key, sleep=0.5, min_balance=sa.MIN_BALANCE_USD, chunk=sa.GUARD_CHUNK,
-                call=None, check_balance=None):
+                call=None, check_balance=None, routing=None):
     """Returns (results, still_failing). Checks the balance before every `chunk` pairs and stops
     cleanly under min_balance; unprocessed, rate-limited and 402'd pairs land in still_failing
-    for a later round. call / check_balance are injectable for tests."""
+    for a later round. routing maps slug -> roster entry so retries use the same provider /
+    api_model routing as Stage A. call / check_balance are injectable for tests."""
+    routing = routing or {}
     call = call or sa.call_model_with_retry
     check_balance = check_balance or (lambda label: sa.balance_ok(api_key, min_balance, label))
     results, still_failing = [], []
@@ -79,7 +81,9 @@ def retry_pairs(pairs, api_key, sleep=0.5, min_balance=sa.MIN_BALANCE_USD, chunk
             rest(i, f"skipped -- balance guard stopped the run before pair {i + 1}")
             break
         try:
-            results.append(call(sentence, model_slug, api_key))
+            g = routing.get(model_slug, {})
+            results.append(call(sentence, model_slug, api_key,
+                                provider=g.get("provider"), api_model=g.get("api_model")))
             print(f"[{i + 1}/{len(pairs)}] ok   model={model_slug}  {sentence[:50]}")
         except sa.OutOfCredits as e:
             print(f"[{i + 1}/{len(pairs)}] OUT OF CREDITS -- stopping cleanly: {e}")
@@ -138,7 +142,9 @@ def main():
         return
 
     print(f"Retrying {len(pairs)} (seed, model) pair(s)...")
-    results, still_failing = retry_pairs(pairs, api_key, sleep=args.sleep, min_balance=args.min_balance)
+    routing = {g["slug"]: g for g in config["stage_a_generators"]}
+    results, still_failing = retry_pairs(pairs, api_key, sleep=args.sleep, min_balance=args.min_balance,
+                                         routing=routing)
 
     with open(args.out, "w", encoding="utf-8") as f:
         for r in results:
