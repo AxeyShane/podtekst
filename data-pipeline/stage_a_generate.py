@@ -166,6 +166,12 @@ def call_model(sentence: str, model_slug: str, api_key: str, max_tokens: int = 1
         raise RuntimeError(f"No JSON object found in response from {model_slug}: {text[:300]}")
     text = text[start:end + 1]
     parsed = json.loads(text)
+    # Key every row by the seed we sent, not the model's echo of it: some models normalise
+    # punctuation (’ -> ') when echoing, which split one sentence into several prefilter groups.
+    echoed = parsed.get("source_text")
+    parsed["source_text"] = sentence
+    if echoed is not None and echoed != sentence:
+        parsed["_model_echoed_source_text"] = echoed
     parsed["_generator_model"] = model_slug
     if parsed.get("source_lang") == "en":
         src_norm = sentence.strip().lower()
@@ -204,6 +210,31 @@ def call_model_with_retry(sentence: str, model_slug: str, api_key: str,
                 return call_model(sentence, model_slug, api_key, max_tokens=2500,
                                   provider=provider, api_model=api_model)
             raise
+
+
+def _norm(text: str) -> str:
+    import unicodedata
+    t = unicodedata.normalize("NFKC", text or "")
+    for a, b in (("’", "'"), ("‘", "'"), ("“", '"'), ("”", '"'), ("«", '"'), ("»", '"'), ("–", "-"), ("—", "-"),
+                 ("‑", "-"), ("…", "...")):
+        t = t.replace(a, b)
+    return " ".join(t.split()).strip()
+
+
+def rekey_to_seeds(rows: list[dict], seeds: list[str]) -> int:
+    """Point each row's source_text back at its seed when a model echoed it with different
+    punctuation. Rows from before call_model keyed by seed need this so the prefilter groups one
+    sentence as one group. Returns how many rows were changed; rows with no matching seed are left."""
+    by_norm = {_norm(s): s for s in seeds}
+    changed = 0
+    for r in rows:
+        src = r.get("source_text")
+        seed = by_norm.get(_norm(src)) if src not in by_norm.values() else None
+        if seed and seed != src:
+            r.setdefault("_model_echoed_source_text", src)
+            r["source_text"] = seed
+            changed += 1
+    return changed
 
 
 # Failure rows whose error starts with one of these are "not attempted / retry later", not model

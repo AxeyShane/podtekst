@@ -123,8 +123,22 @@ def main():
         merge_jsonl([stage_a_out, retries_out], full_path)
         print(f"Merged {stage_a_out} + {retries_out} -> {full_path}")
     else:
-        full_path = stage_a_out
+        merge_jsonl([stage_a_out], full_path)
         print("No failures to retry -- proceeding directly with the original Stage A output.")
+
+    # One sentence = one prefilter group: point rows whose model echoed the seed with different
+    # punctuation (’ -> ') back at the seed they were generated for.
+    from stage_a_generate import rekey_to_seeds
+    with open(args.seeds, encoding="utf-8") as f:
+        seeds = [line.strip() for line in f if line.strip()]
+    with open(full_path, encoding="utf-8") as f:
+        full_rows = [json.loads(line) for line in f if line.strip()]
+    changed = rekey_to_seeds(full_rows, seeds)
+    if changed:
+        with open(full_path, "w", encoding="utf-8") as f:
+            for r in full_rows:
+                f.write(json.dumps(r, ensure_ascii=False) + "\n")
+        print(f"Re-keyed {changed} row(s) whose model echoed the seed with different punctuation.")
 
     run([PY, "deterministic_checks.py", "--in", full_path, "--clean", clean_path,
          "--rejects", rejects_path, "--next-seeds", carryover_path], "deterministic_checks.py")

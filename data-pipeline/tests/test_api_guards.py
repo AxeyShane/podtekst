@@ -1,6 +1,7 @@
 """Balance guard and rate-limit handling for Stage A, with OpenRouter mocked (no network, no spend).
 Run from data-pipeline/:  python -m unittest discover -s tests -t .
 """
+import json
 import unittest
 from unittest import mock
 
@@ -111,6 +112,29 @@ class RateLimitTests(unittest.TestCase):
                                                  call=a_broken, check_balance=lambda _: True, parallel=False)
         self.assertEqual(tripped, {"model/a"})
         self.assertEqual(sum(sa.is_model_failure(f) for f in failures), 4)   # 4 real, then skipped
+
+
+class SourceTextTests(unittest.TestCase):
+    def test_rows_are_keyed_by_the_seed_not_the_models_echo(self):
+        seed = "I absolutely love spending my Saturday fixing someone else’s mess."
+        body = {"source_lang": "en", "source_text": seed.replace("’", "'"), "translation": "Обожаю...",
+                "has_subtext": True, "category": "sarcasm", "nuance_note": "Sarcasm."}
+        resp = mock.Mock(ok=True, status_code=200)
+        resp.json.return_value = {"choices": [{"message": {"content": json.dumps(body)}}]}
+        with mock.patch.object(sa.requests, "post", return_value=resp):
+            row = sa.call_model(seed, "model/a", "k")
+        self.assertEqual(row["source_text"], seed)
+        self.assertEqual(row["_model_echoed_source_text"], seed.replace("’", "'"))
+
+    def test_rekey_existing_rows_to_their_seed(self):
+        seeds = ["I’m so grateful you took the last piece of cake without asking.", "Проходите — доктор ждёт…"]
+        rows = [{"source_text": "I'm so grateful you took the last piece of cake without asking."},
+                {"source_text": "Проходите - доктор ждёт..."},
+                {"source_text": seeds[0]},
+                {"source_text": "Something no seed matches."}]
+        self.assertEqual(sa.rekey_to_seeds(rows, seeds), 2)
+        self.assertEqual([r["source_text"] for r in rows[:3]], [seeds[0], seeds[1], seeds[0]])
+        self.assertEqual(rows[3]["source_text"], "Something no seed matches.")
 
 
 class ParallelResumeTests(unittest.TestCase):
