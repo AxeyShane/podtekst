@@ -63,7 +63,7 @@ def load_seed_list_for_model(path, model_slug):
 
 
 def retry_pairs(pairs, api_key, sleep=0.5, min_balance=sa.MIN_BALANCE_USD, chunk=sa.GUARD_CHUNK,
-                call=None, check_balance=None, routing=None):
+                call=None, check_balance=None, routing=None, on_result=None):
     """Returns (results, still_failing). Checks the balance before every `chunk` pairs and stops
     cleanly under min_balance; unprocessed, rate-limited and 402'd pairs land in still_failing
     for a later round. routing maps slug -> roster entry so retries use the same provider /
@@ -82,8 +82,10 @@ def retry_pairs(pairs, api_key, sleep=0.5, min_balance=sa.MIN_BALANCE_USD, chunk
             break
         try:
             g = routing.get(model_slug, {})
-            results.append(call(sentence, model_slug, api_key,
-                                provider=g.get("provider"), api_model=g.get("api_model")))
+            row = call(sentence, model_slug, api_key, provider=g.get("provider"), api_model=g.get("api_model"))
+            results.append(row)
+            if on_result:
+                on_result(row)
             print(f"[{i + 1}/{len(pairs)}] ok   model={model_slug}  {sentence[:50]}")
         except sa.OutOfCredits as e:
             print(f"[{i + 1}/{len(pairs)}] OUT OF CREDITS -- stopping cleanly: {e}")
@@ -143,12 +145,13 @@ def main():
 
     print(f"Retrying {len(pairs)} (seed, model) pair(s)...")
     routing = {g["slug"]: g for g in config["stage_a_generators"]}
-    results, still_failing = retry_pairs(pairs, api_key, sleep=args.sleep, min_balance=args.min_balance,
-                                         routing=routing)
-
+    # Rows are written as they arrive, so an interrupted retry keeps what it paid for.
     with open(args.out, "w", encoding="utf-8") as f:
-        for r in results:
-            f.write(json.dumps(r, ensure_ascii=False) + "\n")
+        def write_row(row):
+            f.write(json.dumps(row, ensure_ascii=False) + "\n")
+            f.flush()
+        results, still_failing = retry_pairs(pairs, api_key, sleep=args.sleep, min_balance=args.min_balance,
+                                             routing=routing, on_result=write_row)
 
     if still_failing:
         still_path = (
