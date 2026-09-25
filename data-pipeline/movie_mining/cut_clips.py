@@ -170,6 +170,10 @@ def cut(work_dir: Path, min_dur: float = 1.0, max_dur: float = 12.0, min_sbr: fl
     stats["clips"] = len(rows)
     stats["clip_minutes"] = round(sum(r["dur"] for r in rows) / 60, 1)
     print(f"{work_dir.name}: {dict(stats)}")
+    params = {"min_dur": min_dur, "max_dur": max_dur, "min_sbr": min_sbr, "min_level": min_level, "merge_gap": merge_gap}
+    (work_dir / "cut_stats.json").write_text(json.dumps({**stats, "params": params,
+                                                         "audio_minutes": round(n / sr / 60, 1)}, indent=1),
+                                             encoding="utf-8")
     return dict(stats)
 
 

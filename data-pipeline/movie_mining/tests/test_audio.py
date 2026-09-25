@@ -59,6 +59,8 @@ class AudioTests(unittest.TestCase):
             rows = [json.loads(l) for l in (wd / "manifest.jsonl").read_text(encoding="utf-8").splitlines()]
             self.assertEqual(stats["overlap_regions"], 1)
             self.assertEqual(stats["drop_noisy"], 1)                   # 9-11 s under loud side noise
+            saved = json.loads((wd / "cut_stats.json").read_text(encoding="utf-8"))
+            self.assertEqual((saved["clips"], saved["params"]["min_sbr"]), (2, 8.0))
             self.assertEqual(len(rows), 2)
             a, b = rows
             self.assertAlmostEqual(a["end"], 3.5, places=2)            # overlap 3.5-4 removed
