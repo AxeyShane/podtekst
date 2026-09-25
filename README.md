@@ -38,12 +38,12 @@ confident.
 
 ## Progress
 
-*Last updated 2026-09-25.*
+*Last updated 2026-09-26.*
 
 | Phase | Status |
 | --- | --- |
 | Feasibility spike (base Gemma, prompt only) | ✅ Done: nuance detection works out of the box |
-| Training data pipeline (synthetic + verified) | 🔄 In progress: **487 verified rows** toward the 3,000-row Phase 1 target |
+| Training data pipeline (synthetic + verified) | 🔄 In progress: **2,185 verified rows** (batches 1–6a) toward the 3,000-row Phase 1 target; batch 6b in progress |
 | Real-dialogue mining (film audio + subtitles) | 🔄 In progress: see below |
 | LoRA fine-tune (Gemma 2B → 4B) | ⏭️ Next |
 | On-device conversion + benchmarking | 📋 Planned |
@@ -52,10 +52,12 @@ confident.
 
 **Real-dialogue mining so far**
 
-- **Film audio:** 63+ hours of Russian film and series audio processed into
-  **25,000+ clean single-speaker clips (~24 hours)**. Each clip has dialogue
-  separated from music, speaker turns, overlap and noise filtered out, and a
-  machine transcript. A second ASR engine gives every clip a confidence score.
+- **Film audio:** 76.6 hours of Russian film and series audio processed into
+  **29,961 single-speaker clips (27.5 hours of speech)**. Each clip has dialogue
+  separated from music, with overlapping speech and noisy stretches filtered out.
+  Transcripts are machine-generated (GigaAM v3); a second engine (Whisper
+  large-v3) agrees with them on 77% of clips, which serves as a confidence tier,
+  not a human check.
 - **Subtitles:** the OPUS OpenSubtitles RU-EN corpus is mined for lines where a
   human subtitler departed from a literal translation. Lines are limited to
   Russian-made films and filtered for broken text, and ты/вы cases are kept in
