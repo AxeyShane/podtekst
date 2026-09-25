@@ -91,6 +91,33 @@ class TextTests(unittest.TestCase):
                        ("Сегодня 22 июня!", "Today is June 22!")]:
             self.assertEqual(pair_passes(ru, en), (True, ""), ru)
 
+    def test_film_seed_filters_and_sampling(self):
+        from movie_mining import film_seeds as fs
+        self.assertTrue(fs.usable("Ну ты даёшь, я такого не ожидал."))
+        self.assertFalse(fs.usable("Да, да."))                                   # under 4 words
+        self.assertFalse(fs.usable("Скинь мне ссылку на Zoom сейчас."))          # Latin
+        self.assertFalse(fs.usable("О, о-о-о, ну, ну."))                        # interjections only
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            names = {"big": "большого", "small": "малого"}
+            for film, n in (("big", 50), ("small", 3)):
+                (root / film).mkdir()
+                rows = [{"clip": f"clips/{film}_{i}.wav", "ru_text": f"Это реплика номер {i} из {names[film]} фильма.",
+                         "asr_agree": True} for i in range(n)]
+                rows.append({"clip": "clips/x.wav", "ru_text": "Эту реплику движки услышали по-разному.",
+                             "asr_agree": False})
+                rows.append({"clip": "clips/y.wav", "ru_text": "Это реплика номер 0 из большого фильма.",
+                             "asr_agree": True})                                   # duplicate
+                (root / film / "manifest.jsonl").write_text(
+                    "\n".join(json.dumps(r, ensure_ascii=False) for r in rows), encoding="utf-8")
+            avoid = {__import__("movie_mining.text_utils", fromlist=["x"]).normalize_key(
+                "Это реплика номер 1 из малого фильма.")}                              # seen in an earlier batch
+            by_film = fs.collect(root, avoid)
+            self.assertEqual((len(by_film["big"]), len(by_film["small"])), (50, 2))
+            picked = fs.sample(by_film, n=20, per_film=10, rng=random.Random(0))
+            per = {f: sum(r["film"] == f for r in picked) for f in by_film}
+            self.assertEqual(per, {"big": 10, "small": 2})                         # cap + nothing lost
+
     def test_cues(self):
         self.assertEqual(address_register("Я тебе говорил"), "ty")
         self.assertEqual(address_register("Вам помочь?"), "vy")

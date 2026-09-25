@@ -39,4 +39,8 @@ Thumbs.db
 # local-only, never committed (see data-pipeline/movie_mining/README.md).
 data-pipeline/movie_mining/out/
 data-pipeline/seeds_subs_*.txt
+# Seed files carrying verbatim film/subtitle dialogue (film_seeds.py output, merged batches from 6 on).
+data-pipeline/seeds_*_film.txt
+data-pipeline/seeds_*_subs.txt
+data-pipeline/seeds_batch6.txt
 *.wav
