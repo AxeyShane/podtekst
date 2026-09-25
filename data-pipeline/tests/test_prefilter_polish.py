@@ -86,5 +86,37 @@ class PolishRecoveryTests(unittest.TestCase):
         self.assertEqual(fallback["slug"], "deepseek/deepseek-v4-flash")
 
 
+class PrefilterMainTests(unittest.TestCase):
+    def test_parallel_run_keeps_order_and_routes_suspect_rows_to_cowork(self):
+        import os
+        import sys
+        import tempfile
+
+        def cand(src, model, sub=True, cat="sarcasm", **extra):
+            return {"source_lang": "ru", "source_text": src, "translation": f"{src} (EN)", "has_subtext": sub,
+                    "category": cat, "nuance_note": "n", "_generator_model": model, **extra}
+        srcs = [f"Предложение {i}." for i in range(8)]
+        rows = [cand(s, m) for s in srcs for m in ("a", "b")]
+        rows += [cand("Спорное.", "a"), cand("Спорное.", "b", sub=False)]                       # contested
+        rows += [cand("Спасибо, доктор.", "a", _translation_suspect="partial echo")]            # suspect only
+
+        def post(url, headers=None, json=None, timeout=None):
+            src = json["messages"][1]["content"].split("\n")[0].removeprefix("Source sentence: ")
+            return reply(pf_json.dumps({"translation": f"polished {src}", "nuance_note": "ok"}))
+        pf_json = __import__("json")
+        with tempfile.TemporaryDirectory() as d:
+            inp, res, cow = (os.path.join(d, n) for n in ("in.jsonl", "res.jsonl", "cow.jsonl"))
+            pf.write_jsonl(inp, rows)
+            argv = ["stage_b_prefilter.py", "--in", inp, "--resolved", res, "--needs-cowork", cow, "--workers", "4"]
+            with mock.patch.object(sys, "argv", argv), mock.patch.dict(os.environ, {"OPENROUTER_API_KEY": "k"}), \
+                    mock.patch.object(pf.requests, "post", side_effect=post), mock.patch("builtins.print"):
+                pf.main()
+            resolved, cowork = pf.load_jsonl(res), pf.load_jsonl(cow)
+        self.assertEqual([r["source_text"] for r in resolved], srcs)                             # input order
+        self.assertTrue(all(r["translation"] == f"polished {r['source_text']}" for r in resolved))
+        self.assertEqual({r["_stage_b_polish_path"] for r in resolved}, {"primary"})
+        self.assertEqual({r["source_text"] for r in cowork}, {"Спорное.", "Спасибо, доктор."})
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -232,6 +232,8 @@ def main():
                      help="Fraction of candidates that must agree on has_subtext+category to "
                           "auto-resolve (default 1.0 = strict unanimity, no dissenters at all)")
     ap.add_argument("--sleep", type=float, default=0.5)
+    ap.add_argument("--workers", type=int, default=4,
+                     help="Polish this many sentences concurrently (1 = sequential)")
     ap.add_argument("--repolish-from", default=None,
                      help="Re-polish only the rows in this earlier --resolved file that fell back to "
                           "unpolished text (candidates come from --in); writes the full, updated "
@@ -251,8 +253,25 @@ def main():
 
     paths, finish = Counter(), Counter()
 
-    def resolve(source_text, cands, valid, has_subtext, category, agreeing, fraction):
-        picked, path, logs = polish(source_text, has_subtext, category, agreeing, primary, fallback, api_key)
+    def resolve_all(jobs):
+        """jobs: [(source_text, cands, valid, has_subtext, category, agreeing, fraction)] -> rows, same order.
+        Polish calls run concurrently (--workers); rows are built and logged in input order."""
+        from concurrent.futures import ThreadPoolExecutor
+
+        def call(job):
+            src, _, _, has_subtext, category, agreeing, _ = job
+            out = polish(src, has_subtext, category, agreeing, primary, fallback, api_key)
+            if args.workers <= 1:
+                time.sleep(args.sleep)
+            return out
+        if args.workers > 1:
+            with ThreadPoolExecutor(max_workers=args.workers) as pool:
+                outcomes = list(pool.map(call, jobs))
+        else:
+            outcomes = [call(j) for j in jobs]
+        return [build_row(*job, *outcome) for job, outcome in zip(jobs, outcomes)]
+
+    def build_row(source_text, cands, valid, has_subtext, category, agreeing, fraction, picked, path, logs):
         paths[path] += 1
         finish.update(f"{l['model']}:{l.get('finish_reason') or 'error'}" for l in logs)
         last = logs[-1] if logs else {}
@@ -282,7 +301,6 @@ def main():
                        _stage_b_prefilter_model=primary["slug"],
                        _stage_b_prefilter_error="; ".join(l.get("error", "") for l in logs)[:300])
             print(f"  auto-resolved UNPOLISHED (every polish path failed): {source_text[:60]}")
-        time.sleep(args.sleep)
         return row
 
     by_source = dict(groups)
@@ -291,6 +309,7 @@ def main():
         todo = [i for i, r in enumerate(resolved)
                 if r.get("_stage_b_verification") == "auto_resolved_prefilter_fallback_unpolished"]
         print(f"Re-polishing {len(todo)} unpolished rows from {args.repolish_from}")
+        jobs, slots = [], []
         for i in todo:
             src = resolved[i]["source_text"]
             valid = [c for c in by_source.get(src, []) if "_translation_suspect" not in c]
@@ -298,14 +317,17 @@ def main():
             if not eligible:
                 print(f"  skipped (no longer unanimous in --in): {src[:60]}")
                 continue
-            resolved[i] = resolve(src, by_source[src], valid, has_subtext, category, agreeing, fraction)
+            jobs.append((src, by_source[src], valid, has_subtext, category, agreeing, fraction))
+            slots.append(i)
+        for i, row in zip(slots, resolve_all(jobs)):
+            resolved[i] = row
         write_jsonl(args.resolved, resolved)
         print(f"\nDone. Re-polished {len(todo)} rows -> {args.resolved}.")
         print(f"Paths: {dict(paths)}")
         print(f"finish_reason per call: {dict(finish)}")
         return
 
-    resolved, needs_cowork = [], []
+    needs_cowork, jobs = [], []
     contested_count = 0
     for source_text, cands in groups:
         valid = [c for c in cands if "_translation_suspect" not in c]
@@ -316,7 +338,9 @@ def main():
             contested_count += 1
             needs_cowork.extend(cands)  # pass through unchanged, including suspect ones
             continue
-        resolved.append(resolve(source_text, cands, valid, has_subtext, category, agreeing, fraction))
+        jobs.append((source_text, cands, valid, has_subtext, category, agreeing, fraction))
+    print(f"Polishing {len(jobs)} unanimous sentences with {args.workers} worker(s)...")
+    resolved = resolve_all(jobs)
 
     write_jsonl(args.resolved, resolved)
     write_jsonl(args.needs_cowork, needs_cowork)

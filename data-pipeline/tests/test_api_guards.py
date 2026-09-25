@@ -136,6 +136,20 @@ class SourceTextTests(unittest.TestCase):
         self.assertEqual([r["source_text"] for r in rows[:3]], [seeds[0], seeds[1], seeds[0]])
         self.assertEqual(rows[3]["source_text"], "Something no seed matches.")
 
+    def test_rekey_hyphens_typo_fixes_and_partial_echoes(self):
+        seeds = ["Молодой человек, вы что‑то потеряли.",                        # non-breaking hyphen
+                 "Как заботливо с твоей стороны забыть мой ден рождения.",           # typo in the seed
+                 "Спасибо за вашу помощь, доктор. — Спасибо, что выручил.",          # two-speaker seed
+                 "Вы не подскажете, где здесь аптека?",
+                 "Вы не подскажете, где здесь ближайшая аптека?"]                    # near-duplicate seed
+        rows = [{"source_text": "Молодой человек, вы что-то потеряли."},
+                {"source_text": "Как заботливо с твоей стороны забыть мой день рождения."},
+                {"source_text": "Спасибо за вашу помощь, доктор."},                  # partial echo: leave
+                {"source_text": "Вы не подскажете, где здесь аптека ?"}]               # ambiguous: leave
+        self.assertEqual(sa.rekey_to_seeds(rows, seeds), 2)
+        self.assertEqual([r["source_text"] for r in rows], [seeds[0], seeds[1], "Спасибо за вашу помощь, доктор.",
+                                                            "Вы не подскажете, где здесь аптека ?"])
+
 
 class ParallelResumeTests(unittest.TestCase):
     def test_generators_run_concurrently_per_seed(self):

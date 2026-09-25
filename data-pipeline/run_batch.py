@@ -134,11 +134,18 @@ def main():
     with open(full_path, encoding="utf-8") as f:
         full_rows = [json.loads(line) for line in f if line.strip()]
     changed = rekey_to_seeds(full_rows, seeds)
-    if changed:
+    # Whatever still matches no seed (e.g. a model translated only one turn of a two-speaker seed)
+    # isn't a translation of any seed: the prefilter skips suspect rows, so these go to Cowork.
+    seed_set = set(seeds)
+    orphans = [r for r in full_rows if r.get("source_text") not in seed_set]
+    for r in orphans:
+        r.setdefault("_translation_suspect", "source_text matches no seed (partial or altered echo)")
+    if changed or orphans:
         with open(full_path, "w", encoding="utf-8") as f:
             for r in full_rows:
                 f.write(json.dumps(r, ensure_ascii=False) + "\n")
-        print(f"Re-keyed {changed} row(s) whose model echoed the seed with different punctuation.")
+        print(f"Re-keyed {changed} row(s) whose model echoed the seed differently; "
+              f"{len(orphans)} row(s) match no seed and are flagged for Cowork.")
 
     run([PY, "deterministic_checks.py", "--in", full_path, "--clean", clean_path,
          "--rejects", rejects_path, "--next-seeds", carryover_path], "deterministic_checks.py")

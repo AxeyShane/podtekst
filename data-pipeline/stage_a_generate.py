@@ -215,22 +215,46 @@ def call_model_with_retry(sentence: str, model_slug: str, api_key: str,
 def _norm(text: str) -> str:
     import unicodedata
     t = unicodedata.normalize("NFKC", text or "")
+    # NFKC turns the non-breaking hyphen U+2011 into U+2010, so both are mapped.
     for a, b in (("’", "'"), ("‘", "'"), ("“", '"'), ("”", '"'), ("«", '"'), ("»", '"'), ("–", "-"), ("—", "-"),
-                 ("‑", "-"), ("…", "...")):
+                 ("‑", "-"), ("‐", "-"), ("…", "...")):
         t = t.replace(a, b)
     return " ".join(t.split()).strip()
 
 
-def rekey_to_seeds(rows: list[dict], seeds: list[str]) -> int:
-    """Point each row's source_text back at its seed when a model echoed it with different
-    punctuation. Rows from before call_model keyed by seed need this so the prefilter groups one
-    sentence as one group. Returns how many rows were changed; rows with no matching seed are left."""
+def rekey_to_seeds(rows: list[dict], seeds: list[str], min_ratio: float = 0.95, min_margin: float = 0.2) -> int:
+    """Point each row's source_text back at its seed when a model echoed it differently: punctuation
+    (’ -> ', non-breaking hyphens) or a silently corrected seed typo («ден рождения» -> «день»).
+    Rows from before call_model keyed by seed need this so the prefilter groups one sentence as one
+    group. Punctuation-only differences map exactly; otherwise the closest seed must be at least
+    min_ratio similar and beat the runner-up by min_margin, so near-duplicate seeds never merge and
+    partial echoes (a model translating only one turn of a two-speaker seed) are left alone.
+    Returns how many rows were changed."""
+    import difflib
+    seed_set = set(seeds)
     by_norm = {_norm(s): s for s in seeds}
+    cache: dict[str, str | None] = {}
+
+    def closest(src: str) -> str | None:
+        n = _norm(src)
+        if n in by_norm:
+            return by_norm[n]
+        scored = sorted(((difflib.SequenceMatcher(None, n, k).ratio(), s) for k, s in by_norm.items()), reverse=True)
+        if not scored:
+            return None
+        best = scored[0]
+        runner_up = scored[1][0] if len(scored) > 1 else 0.0
+        return best[1] if best[0] >= min_ratio and best[0] - runner_up >= min_margin else None
+
     changed = 0
     for r in rows:
         src = r.get("source_text")
-        seed = by_norm.get(_norm(src)) if src not in by_norm.values() else None
-        if seed and seed != src:
+        if not src or src in seed_set:
+            continue
+        if src not in cache:
+            cache[src] = closest(src)
+        seed = cache[src]
+        if seed:
             r.setdefault("_model_echoed_source_text", src)
             r["source_text"] = seed
             changed += 1
