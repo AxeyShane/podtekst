@@ -73,9 +73,21 @@ class GigaAM:
         return (out if isinstance(out, str) else getattr(out, "text", str(out))).strip()
 
 
-def transcribe_clips(work_dir: Path, asr, force: bool = False) -> int:
+def write_manifest(manifest: Path, rows: list[dict]) -> None:
+    """Write to a temp file, then os.replace: a crash mid-write can't leave a half-written manifest."""
+    import json
+    tmp = manifest.with_suffix(".jsonl.tmp")
+    with open(tmp, "w", encoding="utf-8") as f:
+        for r in rows:
+            f.write(json.dumps(r, ensure_ascii=False) + "\n")
+    os.replace(tmp, manifest)
+
+
+def transcribe_clips(work_dir: Path, asr, force: bool = False, checkpoint_every: int = 100) -> int:
     """Fills ru_text for clips that have no human subtitle text. Human text is
-    never overwritten; --force redoes machine transcripts."""
+    never overwritten; --force redoes machine transcripts. The manifest is saved every
+    checkpoint_every clips, and clips that already have ru_text are skipped, so an
+    interrupted run resumes where it stopped."""
     import json
     work_dir = Path(work_dir)
     manifest = work_dir / "manifest.jsonl"
@@ -91,9 +103,9 @@ def transcribe_clips(work_dir: Path, asr, force: bool = False) -> int:
         r["ru_text"] = asr.transcribe(str(work_dir / r["clip"]))
         r["ru_text_source"] = asr.name if r["ru_text"] else None
         done += 1
-    with open(manifest, "w", encoding="utf-8") as f:
-        for r in rows:
-            f.write(json.dumps(r, ensure_ascii=False) + "\n")
+        if done % checkpoint_every == 0:
+            write_manifest(manifest, rows)
+    write_manifest(manifest, rows)
     print(f"{work_dir.name}: transcribed {done} clips with {asr.name}")
     return done
 
@@ -158,9 +170,7 @@ def cross_check(work_dir: Path, transcribe_fn=None, max_cer: float = 0.10) -> di
         r["ru_text_whisper"] = texts.get(Path(r["clip"]).name, "")
         r["asr_cer"] = round(cer(r["ru_text_whisper"], r.get("ru_text") or ""), 3)
         r["asr_agree"] = r["asr_cer"] <= max_cer
-    with open(manifest, "w", encoding="utf-8") as f:
-        for r in rows:
-            f.write(json.dumps(r, ensure_ascii=False) + "\n")
+    write_manifest(manifest, rows)
     agree = sum(r["asr_agree"] for r in todo)
     stats = {"cross_checked": len(todo), "asr_agree": agree,
              "asr_agree_pct": round(100 * agree / max(1, len(todo)), 1)}

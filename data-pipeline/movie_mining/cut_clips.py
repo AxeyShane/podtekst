@@ -98,11 +98,20 @@ def cut(work_dir: Path, min_dur: float = 1.0, max_dur: float = 12.0, min_sbr: fl
         min_level: float = -45.0, require_subs: bool = True, pad: float = 0.05, merge_gap: float = 0.5) -> dict:
     import soundfile as sf
     work_dir = Path(work_dir)
-    dia, sr = sf.read(work_dir / "dialogue.wav", dtype="float32")
+    # Read each clip's span from disk instead of loading both stems: an 8-hour film is ~1.8 GB per
+    # stem as float32.
+    dia_f = sf.SoundFile(work_dir / "dialogue.wav")
     bg_path = work_dir / "background.wav"
-    bg = sf.read(bg_path, dtype="float32")[0] if bg_path.exists() else np.zeros_like(dia)
-    n = min(len(dia), len(bg))
-    dia, bg = dia[:n], bg[:n]
+    bg_f = sf.SoundFile(bg_path) if bg_path.exists() else None
+    sr = dia_f.samplerate
+    n = min(dia_f.frames, bg_f.frames) if bg_f else dia_f.frames
+
+    def span(f, a: int, b: int) -> np.ndarray:
+        if f is None:
+            return np.zeros(b - a, dtype=np.float32)
+        f.seek(a)
+        return f.read(b - a, dtype="float32")
+
     segs = json.loads((work_dir / "segments.json").read_text(encoding="utf-8"))
     ru, en = load_srt(work_dir / "ru.srt"), load_srt(work_dir / "en.srt")
     ru_source = "human_subs" if ru else None
@@ -132,8 +141,9 @@ def cut(work_dir: Path, min_dur: float = 1.0, max_dur: float = 12.0, min_sbr: fl
                 if b - a < int(min_dur * sr * 0.9):
                     stats["drop_short"] += 1
                     continue
-                level = rms_db(dia[a:b])
-                sbr = level - rms_db(bg[a:b])
+                dia, bg = span(dia_f, a, b), span(bg_f, a, b)
+                level = rms_db(dia)
+                sbr = level - rms_db(bg)
                 if level < min_level:
                     stats["drop_silent"] += 1
                     continue
@@ -145,12 +155,15 @@ def cut(work_dir: Path, min_dur: float = 1.0, max_dur: float = 12.0, min_sbr: fl
                     stats["drop_no_subtitle"] += 1
                     continue
                 name = f"{work_dir.name}_{len(rows):05d}_spk{seg['speaker']}.wav"
-                sf.write(clips_dir / name, dia[a:b], sr, subtype="PCM_16")
+                sf.write(clips_dir / name, dia, sr, subtype="PCM_16")
                 rows.append({"clip": f"clips/{name}", "film": work_dir.name, "start": round(cs, 3),
                              "end": round(ce, 3), "dur": round(ce - cs, 3), "speaker": seg["speaker"],
                              "level_db": round(level, 1), "sbr_db": round(sbr, 1),
                              "ru_text": ru_text, "ru_text_source": ru_source if ru_text else None,
                              "en_text": en_text, "method": method})
+    dia_f.close()
+    if bg_f:
+        bg_f.close()
     with open(work_dir / "manifest.jsonl", "w", encoding="utf-8") as f:
         for r in rows:
             f.write(json.dumps(r, ensure_ascii=False) + "\n")

@@ -16,6 +16,7 @@ import argparse
 from pathlib import Path
 
 from . import cut_clips, diarize, extract_dialogue, transcribe
+from .memlog import peak_rss
 from .paths import FILMS_DIR
 
 VIDEO_EXT = {".mkv", ".mp4", ".avi", ".mov", ".m4v", ".ts", ".webm"}
@@ -43,6 +44,8 @@ def main() -> None:
     ap.add_argument("--no-require-subs", action="store_true")
     ap.add_argument("--cross-check", choices=["none", "whisper"], default="none",
                     help="whisper: second ASR opinion per clip (ru_text_whisper, asr_cer, asr_agree)")
+    ap.add_argument("--recut", action="store_true",
+                    help="Re-run cut_clips even if manifest.jsonl exists (drops its transcripts)")
     args = ap.parse_args()
 
     films = sorted(p for p in args.path.iterdir() if p.suffix.lower() in MEDIA_EXT) if args.path.is_dir() \
@@ -56,30 +59,40 @@ def main() -> None:
         ru = args.ru_srt or next((p for p in (film.with_suffix(".ru.srt"), film.with_suffix(".rus.srt")) if p.exists()), None)
         en = args.en_srt or next((p for p in (film.with_suffix(".en.srt"), film.with_suffix(".eng.srt")) if p.exists()), None)
         if not (wd / "dialogue.wav").exists():
-            extract_dialogue.extract(film, wd, force_demucs=args.demucs, device=args.device, ru_srt=ru, en_srt=en)
+            with peak_rss(wd.name, "extract"):
+                extract_dialogue.extract(film, wd, force_demucs=args.demucs, device=args.device, ru_srt=ru, en_srt=en)
         work_dirs.append(wd)
 
     todo = [wd for wd in work_dirs if not (wd / "segments.json").exists()]
     if todo:
         diarizer = diarize.make_diarizer(args.backend, args.device, args.chunk_minutes)
         for wd in todo:
-            segs = diarizer.diarize(wd / "dialogue.wav")
+            with peak_rss(wd.name, "diarize"):
+                segs = diarizer.diarize(wd / "dialogue.wav")
             (wd / "segments.json").write_text(__import__("json").dumps(segs, indent=1), encoding="utf-8")
             print(f"{wd.name}: {len(segs)} segments")
     needs_asr = [wd for wd in work_dirs if not (wd / "ru.srt").exists()]
     if args.asr == "whisper":
         for wd in needs_asr:
-            transcribe.transcribe(wd, args.whisper_model)
+            with peak_rss(wd.name, "whisper"):
+                transcribe.transcribe(wd, args.whisper_model)
     for wd in work_dirs:
-        cut_clips.cut(wd, min_sbr=args.min_sbr, require_subs=not args.no_require_subs, merge_gap=args.merge_gap)
+        # An existing manifest may hold finished or checkpointed transcripts; re-cutting would drop them.
+        if (wd / "manifest.jsonl").exists() and not args.recut:
+            print(f"{wd.name}: manifest.jsonl exists -- skipping cut (--recut to redo)")
+            continue
+        with peak_rss(wd.name, "cut"):
+            cut_clips.cut(wd, min_sbr=args.min_sbr, require_subs=not args.no_require_subs, merge_gap=args.merge_gap)
     if args.asr == "gigaam" and needs_asr:
         asr = transcribe.GigaAM()
         for wd in needs_asr:
-            transcribe.transcribe_clips(wd, asr)
+            with peak_rss(wd.name, "gigaam"):
+                transcribe.transcribe_clips(wd, asr)
         del asr                                   # free the GPU for whisper.cpp
     if args.cross_check == "whisper" and args.asr == "gigaam":
         for wd in needs_asr:
-            transcribe.cross_check(wd, lambda d, n: transcribe.whisper_clip_texts(d, n, args.whisper_model))
+            with peak_rss(wd.name, "cross_check"):
+                transcribe.cross_check(wd, lambda d, n: transcribe.whisper_clip_texts(d, n, args.whisper_model))
 
 
 if __name__ == "__main__":

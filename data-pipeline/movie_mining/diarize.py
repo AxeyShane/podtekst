@@ -110,18 +110,19 @@ class TransformersDiarizer:
 
     def diarize(self, wav: Path) -> list[dict]:
         import soundfile as sf
-        audio, sr = sf.read(str(wav), dtype="float32")
-        if audio.ndim > 1:
-            audio = audio.mean(axis=1)
-        step = int(self.window * sr)
         segs: list[dict] = []
-        for i, a in enumerate(range(0, len(audio), step)):
-            chunk = audio[a:a + step]
-            if len(chunk) < sr:              # skip a sub-second tail
-                continue
-            probs, frame_sec = self._probs(chunk, sr)
-            segs += probs_to_segments(probs, frame_sec, offset=a / sr, threshold=self.threshold,
-                                      prefix=f"w{i}_")
+        # One window in memory at a time; an 8-hour stem is ~1.8 GB as float32.
+        with sf.SoundFile(str(wav)) as f:
+            sr = f.samplerate
+            step = int(self.window * sr)
+            for i, chunk in enumerate(f.blocks(blocksize=step, dtype="float32")):
+                if chunk.ndim > 1:
+                    chunk = chunk.mean(axis=1)
+                if len(chunk) < sr:              # skip a sub-second tail
+                    continue
+                probs, frame_sec = self._probs(chunk, sr)
+                segs += probs_to_segments(probs, frame_sec, offset=i * step / sr, threshold=self.threshold,
+                                          prefix=f"w{i}_")
         return segs
 
 

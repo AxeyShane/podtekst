@@ -68,6 +68,46 @@ class AudioTests(unittest.TestCase):
             self.assertGreater(a["sbr_db"], 20)
             self.assertTrue((wd / a["clip"]).exists())
 
+            # Span reads must give the same audio as slicing the fully loaded stem (the old code path).
+            import numpy as np
+            import soundfile as sf
+            full, sr = sf.read(wd / "dialogue.wav", dtype="float32")
+            for r in rows:
+                clip, _ = sf.read(wd / r["clip"], dtype="float32")
+                lo, hi = int(max(0, r["start"] - 0.05) * sr), int(min(len(full) / sr, r["end"] + 0.05) * sr)
+                self.assertEqual(len(clip), hi - lo)
+                self.assertTrue(np.allclose(clip, full[lo:hi], atol=2 / 32768))    # PCM_16 rounding only
+
+    def test_windowed_diarization_matches_full_load(self):
+        """diarize() reads one window at a time; the segments must equal running the same windows
+        over the fully loaded file. The model is faked: speaker 0 = frame energy above a threshold."""
+        import numpy as np
+        import soundfile as sf
+        sr, frame = 16000, 1600                                   # 0.1 s frames
+
+        def fake_probs(chunk, sr_):
+            n = len(chunk) // frame
+            rms = np.sqrt((chunk[:n * frame].reshape(n, frame) ** 2).mean(1))
+            return np.stack([rms > 0.05, rms > 0.2], axis=1).astype(float), frame / sr_
+
+        t = np.arange(int(5.5 * sr)) / sr
+        audio = (0.1 * np.sin(2 * np.pi * 220 * t) * ((t > 0.5) & (t < 2.5))
+                 + 0.4 * np.sin(2 * np.pi * 440 * t) * ((t > 1.8) & (t < 4.7))).astype(np.float32)
+        with tempfile.TemporaryDirectory() as d:
+            wav = Path(d) / "dialogue.wav"
+            sf.write(wav, audio, sr, subtype="FLOAT")
+            dz = diarize.TransformersDiarizer.__new__(diarize.TransformersDiarizer)   # skip model loading
+            dz.window, dz.threshold, dz._probs = 2.0, 0.5, fake_probs
+            got = dz.diarize(wav)
+            step, want = int(2.0 * sr), []
+            for i, a in enumerate(range(0, len(audio), step)):
+                chunk = audio[a:a + step]
+                if len(chunk) >= sr:
+                    probs, fs = fake_probs(chunk, sr)
+                    want += diarize.probs_to_segments(probs, fs, offset=a / sr, threshold=0.5, prefix=f"w{i}_")
+            self.assertTrue(got)
+            self.assertEqual(got, want)
+
     def test_probs_to_segments(self):
         import numpy as np
         p = np.zeros((100, 2))              # 100 frames x 0.1 s = 10 s
@@ -158,6 +198,40 @@ class DemucsTests(unittest.TestCase):
                 self.assertAlmostEqual(len(audio) / sr, 3.5, delta=0.1)
                 rms = [float(np.sqrt(np.mean(audio[int(i * sr):int((i + 1) * sr)] ** 2))) for i in range(3)]
                 self.assertTrue(rms[0] < rms[1] < rms[2], rms)                   # chunks joined in order
+
+
+class TranscribeResumeTests(unittest.TestCase):
+    def test_interrupted_transcription_resumes(self):
+        from movie_mining import transcribe
+        calls = []
+
+        class ASR:
+            name = "fake"
+
+            def __init__(self, fail_on=None):
+                self.fail_on, self.n = fail_on, 0
+
+            def transcribe(self, path):
+                self.n += 1
+                if self.n == self.fail_on:
+                    raise RuntimeError("crash")
+                calls.append(Path(path).name)
+                return f"text {Path(path).stem}"
+
+        with tempfile.TemporaryDirectory() as d:
+            wd = Path(d)
+            rows = [{"clip": f"clips/c{i}.wav", "ru_text": "", "ru_text_source": None} for i in range(7)]
+            transcribe.write_manifest(wd / "manifest.jsonl", rows)
+            with self.assertRaises(RuntimeError):
+                transcribe.transcribe_clips(wd, ASR(fail_on=5), checkpoint_every=2)
+            saved = [json.loads(l) for l in (wd / "manifest.jsonl").read_text(encoding="utf-8").splitlines()]
+            self.assertEqual(sum(bool(r["ru_text"]) for r in saved), 4)            # checkpoints at 2 and 4
+            self.assertEqual(len(saved), 7)
+            transcribe.transcribe_clips(wd, ASR(), checkpoint_every=2)
+            out = [json.loads(l) for l in (wd / "manifest.jsonl").read_text(encoding="utf-8").splitlines()]
+            self.assertEqual([r["ru_text"] for r in out], [f"text c{i}" for i in range(7)])
+            self.assertEqual(sorted(calls), sorted(f"c{i}.wav" for i in range(7)))  # none redone, none lost
+            self.assertFalse(list(wd.glob("*.tmp")))
 
 
 class CrossCheckTests(unittest.TestCase):

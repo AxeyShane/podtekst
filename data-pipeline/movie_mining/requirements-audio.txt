@@ -3,6 +3,7 @@
 numpy>=1.24
 soundfile>=0.12
 librosa                     # Nemotron 3 Diarization feature extractor (transformers backend)
+psutil                      # peak-memory log per pipeline stage (includes the demucs subprocess)
 demucs>=4.0                 # only used for stereo sources without a 5.1 center channel
 # Diarization (Nemotron 3). NeMo is best supported on Linux -- on Windows,
 # run diarize.py / run_film.py inside WSL2 Ubuntu with CUDA.
