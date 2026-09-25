@@ -19,7 +19,7 @@ RUSSIAN = "Q7737"
 # QLever serves the same Wikidata dump and answers a 200-id batch in ~1.5 s; the
 # official endpoint took ~60 s and often 502'd, so it's only the fallback.
 SPARQL_URLS = ("https://qlever.cs.uni-freiburg.de/api/wikidata", "https://query.wikidata.org/sparql")
-USER_AGENT = "podtekst-mining/0.1 (open-source research; https://github.com/AxeyShane/podtekst)"
+USER_AGENT = "podtekst-mining/0.1 (open-source research tool)"
 
 
 def imdb_id(film_key: str) -> str | None:
