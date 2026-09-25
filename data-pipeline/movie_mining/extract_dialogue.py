@@ -13,8 +13,9 @@ Method, in order of preference:
     most music/effects in the other channels, so this is nearly clean for free.
     Background = FL+FR.
   * Stereo/mono  -> Demucs (htdemucs, two-stem vocals). Heavier, needs the
-    audio extras (see requirements-audio.txt). Runs on 20-minute chunks whose
-    stems are concatenated, so multi-hour files fit in RAM.
+    audio extras (see requirements-audio.txt). Runs on 10-minute chunks that
+    overlap by 5 s; the stems are crossfaded across the overlap, so multi-hour
+    files fit in RAM without seams.
 
 The Russian audio track is picked by language tag (rus/ru) when the file has
 several; override with --audio-stream.
@@ -97,39 +98,68 @@ def chunk_spans(total: float, chunk_s: float) -> list[tuple[float, float]]:
     return spans
 
 
-def extract_demucs(src: Path, a_idx: int, out_dir: Path, device: str | None, chunk_minutes: float = 20) -> None:
-    """Demucs on chunk_minutes pieces, stems joined afterwards: Demucs holds the whole input (and its
-    outputs) in RAM, so a multi-hour file would exhaust memory in one go. Only one chunk's 44.1 kHz
-    stereo audio sits in the temp dir at a time.
-    ponytail: hard cuts, no overlap -- a word split at a chunk edge can lose a few ms of separation
-    quality; add overlap + crossfade if clips at the ~20-min marks turn out damaged."""
+class _Stitcher:
+    """Appends chunk stems to one wav, linearly crossfading the overlap_n samples that consecutive
+    chunks share. Only the held-back tail of the previous chunk stays in memory."""
+
+    def __init__(self, path: Path, overlap_n: int):
+        import soundfile as sf
+        self.out = sf.SoundFile(path, "w", samplerate=SR, channels=1, subtype="PCM_16")
+        self.n, self.tail = overlap_n, None
+
+    def add(self, x, last: bool) -> None:
+        import numpy as np
+        if self.tail is not None:
+            k = min(len(self.tail), len(x))
+            w = np.linspace(0.0, 1.0, k, endpoint=False, dtype=np.float32)
+            self.out.write(self.tail[:k] * (1 - w) + x[:k] * w)
+            x = x[k:]
+        if not last and self.n:
+            x, self.tail = x[:-self.n], x[-self.n:]
+        self.out.write(x)
+
+    def close(self) -> None:
+        self.out.close()
+
+
+def extract_demucs(src: Path, a_idx: int, out_dir: Path, device: str | None, chunk_minutes: float = 10,
+                   overlap_s: float = 5.0) -> None:
+    """Demucs on chunk_minutes pieces, stems stitched afterwards: Demucs holds the whole input (and
+    its outputs) in RAM, so a multi-hour file would exhaust memory in one go. Each chunk but the
+    last is decoded overlap_s longer, so neighbours share overlap_s of audio; the stems are
+    crossfaded across that stretch, which hides Demucs's edge effects without a gap or doubled
+    audio. Only one chunk's audio is on disk / in memory at a time."""
+    import soundfile as sf
     spans = chunk_spans(duration(src), chunk_minutes * 60)
-    with tempfile.TemporaryDirectory() as tmp:
-        tmp = Path(tmp)
-        parts: dict[str, list[Path]] = {"dialogue": [], "background": []}
-        for i, (start, length) in enumerate(spans):
-            stereo = tmp / f"mix{i}.wav"
-            _run(["ffmpeg", "-v", "error", "-y", "-ss", f"{start:.3f}", "-t", f"{length:.3f}", "-i", str(src),
-                  "-map", f"0:a:{a_idx}", "-ac", "2", "-ar", "44100", str(stereo)])
-            cmd = [sys.executable, "-m", "demucs", "--two-stems", "vocals", "-n", "htdemucs", "-o", str(tmp / "sep")]
-            if device:
-                cmd += ["-d", device]
-            _run(cmd + [str(stereo)])
-            stem_dir = tmp / "sep" / "htdemucs" / stereo.stem
-            for stem, name in (("vocals", "dialogue"), ("no_vocals", "background")):
-                part = tmp / f"{name}{i}.wav"
-                _run(["ffmpeg", "-v", "error", "-y", "-i", str(stem_dir / f"{stem}.wav"), "-ac", "1", "-ar", str(SR),
-                      str(part)])
-                parts[name].append(part)
-            stereo.unlink(missing_ok=True)
-            shutil.rmtree(stem_dir, ignore_errors=True)
-            if len(spans) > 1:
-                print(f"  demucs chunk {i + 1}/{len(spans)}")
-        for name, files in parts.items():
-            listing = tmp / f"{name}.txt"
-            listing.write_text("".join(f"file '{p.as_posix()}'\n" for p in files), encoding="utf-8")
-            _run(["ffmpeg", "-v", "error", "-y", "-f", "concat", "-safe", "0", "-i", str(listing), "-c", "copy",
-                  str(out_dir / f"{name}.wav")])
+    stitch = {name: _Stitcher(out_dir / f"{name}.wav", int(overlap_s * SR)) for name in ("dialogue", "background")}
+    try:
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp = Path(tmp)
+            for i, (start, length) in enumerate(spans):
+                last = i == len(spans) - 1
+                stereo = tmp / f"mix{i}.wav"
+                _run(["ffmpeg", "-v", "error", "-y", "-ss", f"{start:.3f}", "-t",
+                      f"{length + (0 if last else overlap_s):.3f}", "-i", str(src),
+                      "-map", f"0:a:{a_idx}", "-ac", "2", "-ar", "44100", str(stereo)])
+                cmd = [sys.executable, "-m", "demucs", "--two-stems", "vocals", "-n", "htdemucs",
+                       "-o", str(tmp / "sep")]
+                if device:
+                    cmd += ["-d", device]
+                _run(cmd + [str(stereo)])
+                stem_dir = tmp / "sep" / "htdemucs" / stereo.stem
+                for stem, name in (("vocals", "dialogue"), ("no_vocals", "background")):
+                    part = tmp / f"{name}{i}.wav"
+                    _run(["ffmpeg", "-v", "error", "-y", "-i", str(stem_dir / f"{stem}.wav"), "-ac", "1",
+                          "-ar", str(SR), str(part)])
+                    stitch[name].add(sf.read(part, dtype="float32")[0], last)
+                    part.unlink()
+                stereo.unlink(missing_ok=True)
+                shutil.rmtree(stem_dir, ignore_errors=True)
+                if len(spans) > 1:
+                    print(f"  demucs chunk {i + 1}/{len(spans)}")
+    finally:
+        for s in stitch.values():
+            s.close()
 
 
 def extract_subs(src: Path, streams: list[dict], out_dir: Path) -> dict:
