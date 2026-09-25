@@ -62,6 +62,39 @@ def load_seed_list_for_model(path, model_slug):
         return [(line.strip(), model_slug) for line in f if line.strip()]
 
 
+def retry_pairs(pairs, api_key, sleep=0.5, min_balance=sa.MIN_BALANCE_USD, chunk=sa.GUARD_CHUNK,
+                call=None, check_balance=None):
+    """Returns (results, still_failing). Checks the balance before every `chunk` pairs and stops
+    cleanly under min_balance; unprocessed, rate-limited and 402'd pairs land in still_failing
+    for a later round. call / check_balance are injectable for tests."""
+    call = call or sa.call_model_with_retry
+    check_balance = check_balance or (lambda label: sa.balance_ok(api_key, min_balance, label))
+    results, still_failing = [], []
+
+    def rest(start, reason):
+        still_failing.extend({"source_text": s, "model": m, "error": reason} for s, m in pairs[start:])
+
+    for i, (sentence, model_slug) in enumerate(pairs):
+        if i % chunk == 0 and not check_balance(f"pairs {i + 1}-{min(i + chunk, len(pairs))}"):
+            rest(i, f"skipped -- balance guard stopped the run before pair {i + 1}")
+            break
+        try:
+            results.append(call(sentence, model_slug, api_key))
+            print(f"[{i + 1}/{len(pairs)}] ok   model={model_slug}  {sentence[:50]}")
+        except sa.OutOfCredits as e:
+            print(f"[{i + 1}/{len(pairs)}] OUT OF CREDITS -- stopping cleanly: {e}")
+            rest(i, f"out of credits -- {e}")
+            break
+        except sa.RateLimited as e:
+            still_failing.append({"source_text": sentence, "model": model_slug, "error": f"rate limited -- {e}"})
+            print(f"[{i + 1}/{len(pairs)}] RATE-LIMITED model={model_slug} (retry later)")
+        except Exception as e:
+            still_failing.append({"source_text": sentence, "model": model_slug, "error": str(e)})
+            print(f"[{i + 1}/{len(pairs)}] FAILED model={model_slug}: {e}  {sentence[:50]}")
+        time.sleep(sleep)
+    return results, still_failing
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--failures", help="JSONL failures file from stage_a_generate.py's --failures flag")
@@ -70,6 +103,9 @@ def main():
     ap.add_argument("--out", required=True, help="Output JSONL of successfully retried rows")
     ap.add_argument("--config", default="config/models.json")
     ap.add_argument("--sleep", type=float, default=0.5)
+    ap.add_argument("--min-balance", type=float, default=sa.MIN_BALANCE_USD,
+                    help="Stop cleanly when the OpenRouter balance drops under this many USD "
+                         f"(checked every {sa.GUARD_CHUNK} pairs); the rest go to .still_failing.jsonl")
     args = ap.parse_args()
 
     if not args.failures and not args.seeds:
@@ -102,17 +138,7 @@ def main():
         return
 
     print(f"Retrying {len(pairs)} (seed, model) pair(s)...")
-
-    results, still_failing = [], []
-    for i, (sentence, model_slug) in enumerate(pairs, 1):
-        try:
-            row = sa.call_model_with_retry(sentence, model_slug, api_key)
-            results.append(row)
-            print(f"[{i}/{len(pairs)}] ok   model={model_slug}  {sentence[:50]}")
-        except Exception as e:
-            still_failing.append({"source_text": sentence, "model": model_slug, "error": str(e)})
-            print(f"[{i}/{len(pairs)}] FAILED model={model_slug}: {e}  {sentence[:50]}")
-        time.sleep(args.sleep)
+    results, still_failing = retry_pairs(pairs, api_key, sleep=args.sleep, min_balance=args.min_balance)
 
     with open(args.out, "w", encoding="utf-8") as f:
         for r in results:

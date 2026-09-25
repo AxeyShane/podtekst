@@ -40,6 +40,48 @@ except ImportError:
 # Skipped seeds are still recorded to --failures for later retry.
 CIRCUIT_BREAKER_CONSECUTIVE = 4
 
+# Balance guard: before every chunk of GUARD_CHUNK seeds, ask OpenRouter what's left and stop
+# cleanly (unprocessed pairs -> --failures, exit 0) below MIN_BALANCE_USD, so a run never hits a
+# 402 halfway through. Keep MIN_BALANCE_USD above the cost of one chunk.
+GUARD_CHUNK = 25
+MIN_BALANCE_USD = 0.75
+CREDITS_URL = "https://openrouter.ai/api/v1/credits"
+
+# 429s mean "slow down", not "this model is broken": back off longer, and never count them
+# toward the circuit breaker or model_health.json (parallel batches share one rate limit).
+RATE_LIMIT_WAITS = (5, 10, 20, 40, 60, 60)
+
+
+class RateLimited(RuntimeError):
+    """Still HTTP 429 after every backoff; the pair is worth retrying later."""
+
+
+class OutOfCredits(RuntimeError):
+    """HTTP 402: the balance ran out despite the guard."""
+
+
+def remaining_balance(api_key: str) -> float | None:
+    """total_credits - total_usage from OpenRouter, or None if the endpoint can't be read."""
+    try:
+        r = requests.get(CREDITS_URL, headers={"Authorization": f"Bearer {api_key}"}, timeout=20)
+        r.raise_for_status()
+        d = r.json()["data"]
+        return float(d["total_credits"]) - float(d["total_usage"])
+    except (requests.RequestException, KeyError, TypeError, ValueError) as e:
+        print(f"    (balance check failed: {e})")
+        return None
+
+
+def balance_ok(api_key: str, min_balance: float, label: str) -> bool:
+    bal = remaining_balance(api_key)
+    if bal is None:
+        return True          # can't tell -- carry on; a real 402 still stops the run (OutOfCredits)
+    print(f"  [balance ${bal:.2f} before {label}]")
+    if bal < min_balance:
+        print(f"  !! balance ${bal:.2f} is under the ${min_balance:.2f} guard -- stopping cleanly.")
+        return False
+    return True
+
 SYSTEM_PROMPT = """You are building training data for a small on-device model that
 translates between Russian and English AND flags unstated intent that a literal
 translation would lose (tone, formality register, sarcasm, idiom, emotional subtext).
@@ -99,6 +141,8 @@ def call_model(sentence: str, model_slug: str, api_key: str, max_tokens: int = 1
         },
         timeout=30,
     )
+    if response.status_code == 402:
+        raise OutOfCredits(f"HTTP 402 from OpenRouter for model={model_slug}: {response.text[:300]}")
     if not response.ok:
         raise RuntimeError(
             f"HTTP {response.status_code} from OpenRouter for model={model_slug}: "
@@ -137,33 +181,98 @@ def call_model(sentence: str, model_slug: str, api_key: str, max_tokens: int = 1
 def call_model_with_retry(sentence: str, model_slug: str, api_key: str,
                            provider: dict | None = None, api_model: str | None = None) -> dict:
     """Wraps call_model with two targeted retry strategies:
-    - HTTP 429 (upstream rate limit): backoff and retry, up to 3 attempts.
+    - HTTP 429 (rate limit): back off (RATE_LIMIT_WAITS) and retry; if it's still 429 after
+      every wait, raise RateLimited so the caller can treat it as "retry later", not a failure.
     - Empty content (reasoning ate the whole token budget): retry once with
       a much larger budget rather than raising the baseline for every call.
     """
-    last_error = None
-    for attempt in range(3):
+    for attempt, wait in enumerate(RATE_LIMIT_WAITS + (None,)):
         try:
             return call_model(sentence, model_slug, api_key, provider=provider, api_model=api_model)
+        except OutOfCredits:
+            raise
         except RuntimeError as e:
-            last_error = e
             msg = str(e)
-            if "429" in msg:
-                wait = 5 * (attempt + 1)
-                print(f"    -> rate limited, retrying in {wait}s (attempt {attempt + 1}/3)")
+            if "HTTP 429" in msg:
+                if wait is None:
+                    raise RateLimited(f"still rate limited after {attempt} backoffs: {msg[:200]}") from e
+                print(f"    -> rate limited, retrying in {wait}s (attempt {attempt + 1}/{len(RATE_LIMIT_WAITS)})")
                 time.sleep(wait)
                 continue
             if "EMPTY_CONTENT" in msg:
                 print(f"    -> reasoning ate the budget, retrying once with more room")
-                try:
-                    return call_model(sentence, model_slug, api_key, max_tokens=2500,
-                                       provider=provider, api_model=api_model)
-                except RuntimeError as e2:
-                    last_error = e2
-                    break
-            else:
-                raise
-    raise last_error
+                return call_model(sentence, model_slug, api_key, max_tokens=2500,
+                                  provider=provider, api_model=api_model)
+            raise
+
+
+# Failure rows whose error starts with one of these are "not attempted / retry later", not model
+# failures: they never count toward the circuit breaker or model_health.json.
+NOT_A_MODEL_FAILURE = ("skipped --", "rate limited --", "out of credits --")
+
+
+def is_model_failure(row: dict) -> bool:
+    return not row["error"].startswith(NOT_A_MODEL_FAILURE)
+
+
+def generate(seeds, generators, api_key, breaker_threshold=CIRCUIT_BREAKER_CONSECUTIVE, sleep=0.5,
+             min_balance=MIN_BALANCE_USD, chunk=GUARD_CHUNK, call=None, check_balance=None):
+    """Runs every (seed, generator) pair. Returns (results, failures, call_count,
+    consecutive_fail, breaker_tripped). call / check_balance are injectable for tests."""
+    call = call or call_model_with_retry
+    check_balance = check_balance or (lambda label: balance_ok(api_key, min_balance, label))
+    results, failures = [], []
+    call_count, total_calls = 0, len(seeds) * len(generators)
+    consecutive_fail = {g["slug"]: 0 for g in generators}
+    breaker_tripped = set()
+
+    def skip_rest(from_seed: int, reason: str):
+        for s in seeds[from_seed:]:
+            for g in generators:
+                failures.append({"source_text": s, "model": g["slug"], "error": reason})
+
+    for i, sentence in enumerate(seeds):
+        if i % chunk == 0 and not check_balance(f"seeds {i + 1}-{min(i + chunk, len(seeds))}"):
+            skip_rest(i, f"skipped -- balance guard stopped the run before seed {i + 1}")
+            break
+        for j, generator in enumerate(generators):
+            call_count += 1
+            slug = generator["slug"]
+            if slug in breaker_tripped:
+                failures.append({
+                    "source_text": sentence, "model": slug,
+                    "error": f"skipped -- circuit breaker tripped after "
+                             f"{breaker_threshold} consecutive failures this run",
+                })
+                print(f"[{call_count}/{total_calls}] SKIP model={slug}  (circuit breaker tripped)")
+                continue
+            try:
+                annotated = call(sentence, slug, api_key,
+                                 provider=generator.get("provider"), api_model=generator.get("api_model"))
+                results.append(annotated)
+                consecutive_fail[slug] = 0
+                print(f"[{call_count}/{total_calls}] ok   model={slug}  "
+                      f"has_subtext={annotated.get('has_subtext')}")
+            except RateLimited as e:
+                failures.append({"source_text": sentence, "model": slug, "error": f"rate limited -- {e}"})
+                print(f"[{call_count}/{total_calls}] RATE-LIMITED model={slug} (retry later, not a model failure)")
+            except OutOfCredits as e:
+                print(f"[{call_count}/{total_calls}] OUT OF CREDITS -- stopping cleanly: {e}")
+                for g in generators[j:]:
+                    failures.append({"source_text": sentence, "model": g["slug"], "error": f"out of credits -- {e}"})
+                skip_rest(i + 1, "out of credits -- run stopped on HTTP 402")
+                return results, failures, call_count, consecutive_fail, breaker_tripped
+            except Exception as e:
+                failures.append({"source_text": sentence, "model": slug, "error": str(e)})
+                consecutive_fail[slug] += 1
+                print(f"[{call_count}/{total_calls}] FAILED model={slug}: {e}")
+                if consecutive_fail[slug] >= breaker_threshold:
+                    breaker_tripped.add(slug)
+                    print(f"    !! {slug} hit {breaker_threshold} consecutive failures -- "
+                          f"excluding it from the rest of this run (remaining seeds recorded "
+                          f"as failures for retry, not attempted).")
+            time.sleep(sleep)
+    return results, failures, call_count, consecutive_fail, breaker_tripped
 
 
 def main():
@@ -180,6 +289,10 @@ def main():
                          help="Consecutive failures from one model within this run before it's "
                               "excluded from the rest of the run (default: "
                               f"{CIRCUIT_BREAKER_CONSECUTIVE}).")
+    parser.add_argument("--min-balance", type=float, default=MIN_BALANCE_USD,
+                         help="Stop cleanly (unprocessed pairs -> --failures, exit 0) when the "
+                              f"OpenRouter balance drops under this many USD (default {MIN_BALANCE_USD}); "
+                              f"checked before every {GUARD_CHUNK} seeds.")
     args = parser.parse_args()
 
     api_key = os.environ.get("OPENROUTER_API_KEY")
@@ -197,44 +310,9 @@ def main():
     print(f"Loaded {len(seeds)} seeds, {len(generators)} active generator models.")
     print(f"Total calls to make: {len(seeds) * len(generators)}")
 
-    results = []
-    failures = []
-    call_count = 0
-    total_calls = len(seeds) * len(generators)
-    consecutive_fail = {g["slug"]: 0 for g in generators}
-    breaker_tripped = set()
-
-    for sentence in seeds:
-        for generator in generators:
-            call_count += 1
-            slug = generator["slug"]
-            if slug in breaker_tripped:
-                failures.append({
-                    "source_text": sentence, "model": slug,
-                    "error": f"skipped -- circuit breaker tripped after "
-                             f"{args.breaker_threshold} consecutive failures this run",
-                })
-                print(f"[{call_count}/{total_calls}] SKIP model={slug}  (circuit breaker tripped)")
-                continue
-            try:
-                annotated = call_model_with_retry(
-                    sentence, slug, api_key,
-                    provider=generator.get("provider"), api_model=generator.get("api_model"),
-                )
-                results.append(annotated)
-                consecutive_fail[slug] = 0
-                print(f"[{call_count}/{total_calls}] ok   model={slug}  "
-                      f"has_subtext={annotated.get('has_subtext')}")
-            except Exception as e:
-                failures.append({"source_text": sentence, "model": slug, "error": str(e)})
-                consecutive_fail[slug] += 1
-                print(f"[{call_count}/{total_calls}] FAILED model={slug}: {e}")
-                if consecutive_fail[slug] >= args.breaker_threshold:
-                    breaker_tripped.add(slug)
-                    print(f"    !! {slug} hit {args.breaker_threshold} consecutive failures -- "
-                          f"excluding it from the rest of this run (remaining seeds recorded "
-                          f"as failures for retry, not attempted).")
-            time.sleep(args.sleep)
+    results, failures, call_count, consecutive_fail, breaker_tripped = generate(
+        seeds, generators, api_key, breaker_threshold=args.breaker_threshold, sleep=args.sleep,
+        min_balance=args.min_balance)
 
     with open(args.out, "w", encoding="utf-8") as f:
         for row in results:
@@ -249,12 +327,9 @@ def main():
         if not attempted:
             continue
         tripped = slug in breaker_tripped
-        attempts_for_slug = sum(1 for r in results if r.get("_generator_model") == slug) + \
-            sum(1 for f in failures if f["model"] == slug and "circuit breaker" not in f["error"])
-        fail_rate = (
-            sum(1 for f in failures if f["model"] == slug and "circuit breaker" not in f["error"])
-            / attempts_for_slug
-        ) if attempts_for_slug else None
+        model_fails = sum(1 for f in failures if f["model"] == slug and is_model_failure(f))
+        attempts_for_slug = sum(1 for r in results if r.get("_generator_model") == slug) + model_fails
+        fail_rate = model_fails / attempts_for_slug if attempts_for_slug else None
         if rh.record_run_result(health, slug, tripped_breaker=tripped,
                                  failure_rate=fail_rate, run_label=args.out):
             newly_disabled.append(slug)
