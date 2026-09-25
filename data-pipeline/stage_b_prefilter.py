@@ -104,39 +104,117 @@ def eligible_for_autoresolve(valid_candidates, min_agreement):
     return True, top_subtext, cats.pop(), agreeing, fraction
 
 
-def call_glm(source_text, has_subtext, category, agreeing, model_slug, api_key,
-             provider=None, api_model=None):
+# Polish-call defaults, overridable per model in config/models.json. Diagnosed 2026-09-25 on batch 4:
+# with max_tokens=400 and no reasoning setting, fallback providers spent up to 472 reasoning tokens
+# and returned finish_reason=length with empty content (25 of 27 failures) or cut-off JSON (2).
+# glm-5.3-flash can't turn reasoning off ("mandatory for this endpoint"), but effort=low keeps it
+# to a few dozen tokens; 1500 leaves ample room for a two-field JSON answer.
+POLISH_DEFAULTS = {"max_tokens": 1500, "reasoning": {"effort": "low"},
+                   "response_format": {"type": "json_object"}}
+DEFAULT_FALLBACK_MODEL = "deepseek/deepseek-v4-flash"
+
+
+class PolishError(RuntimeError):
+    """The model answered, but not with usable JSON (empty, cut off by length, or unparseable)."""
+
+
+def build_user_msg(source_text, has_subtext, category, agreeing):
     candidate_lines = "\n".join(
         f'- translation: "{c.get("translation")}" | nuance_note: "{c.get("nuance_note", "")}"'
         for c in agreeing
     )
-    user_msg = (
+    return (
         f"Source sentence: {source_text}\n"
         f"Settled verdict: has_subtext={has_subtext}, category={category}\n"
         f"Candidates (all agree on the verdict above):\n{candidate_lines}\n"
     )
-    response = requests.post(
+
+
+def call_polish(user_msg, model_cfg, api_key, post=None):
+    """One polish call. Returns (parsed_json, log) where log has model, finish_reason, provider and
+    token usage; raises PolishError (log attached as .log) on empty / cut-off / unparseable output."""
+    post = post or requests.post
+    params = {k: model_cfg.get(k, v) for k, v in POLISH_DEFAULTS.items()}
+    provider = model_cfg.get("provider")
+    if provider and params.get("response_format"):
+        provider = {**provider, "require_parameters": True}   # skip routes that would ignore JSON mode
+    response = post(
         "https://openrouter.ai/api/v1/chat/completions",
         headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
         json={
-            "model": api_model or model_slug,
+            "model": model_cfg.get("api_model") or model_cfg["slug"],
             "messages": [
                 {"role": "system", "content": PREFILTER_SYSTEM_PROMPT},
                 {"role": "user", "content": user_msg},
             ],
-            "max_tokens": 400,
+            **{k: v for k, v in params.items() if v is not None},
             **({"provider": provider} if provider else {}),
         },
-        timeout=30,
+        timeout=60,
     )
     if not response.ok:
         raise RuntimeError(f"HTTP {response.status_code} from OpenRouter: {response.text[:300]}")
-    text = response.json()["choices"][0]["message"].get("content", "").strip()
+    data = response.json()
+    choice = data["choices"][0]
+    usage = data.get("usage") or {}
+    log = {"model": model_cfg["slug"], "provider": data.get("provider"),
+           "finish_reason": choice.get("finish_reason"),
+           "completion_tokens": usage.get("completion_tokens"),
+           "reasoning_tokens": (usage.get("completion_tokens_details") or {}).get("reasoning_tokens")}
+    text = (choice["message"].get("content") or "").strip()
     text = text.removeprefix("```json").removeprefix("```").removesuffix("```").strip()
     start, end = text.find("{"), text.rfind("}")
-    if start == -1 or end == -1:
-        raise RuntimeError(f"No JSON object in GLM response: {text[:300]}")
-    return json.loads(text[start:end + 1])
+    try:
+        if not text:
+            raise ValueError("empty content")
+        if start == -1 or end < start:
+            raise ValueError(f"no JSON object: {text[:120]}")
+        parsed = json.loads(text[start:end + 1])
+        if not isinstance(parsed, dict) or not parsed.get("translation"):
+            raise ValueError(f"JSON without a translation: {text[:120]}")
+    except ValueError as e:
+        err = PolishError(f"{e} (finish_reason={log['finish_reason']}, "
+                          f"reasoning_tokens={log['reasoning_tokens']})")
+        err.log = {**log, "error": str(e)[:200]}
+        raise err
+    return parsed, log
+
+
+def polish(source_text, has_subtext, category, agreeing, primary, fallback, api_key, post=None,
+           sleep=time.sleep):
+    """primary, primary again, then the fallback model. Returns (picked, path, call_logs) with path
+    one of primary / primary_retry / fallback_model, or (None, "unpolished", call_logs)."""
+    user_msg = build_user_msg(source_text, has_subtext, category, agreeing)
+    logs = []
+    attempts = [("primary", primary), ("primary_retry", primary)]
+    if fallback:
+        attempts.append(("fallback_model", fallback))
+    for i, (path, model_cfg) in enumerate(attempts):
+        if i:
+            sleep(1.0)
+        try:
+            picked, log = call_polish(user_msg, model_cfg, api_key, post=post)
+            logs.append({**log, "path": path})
+            return picked, path, logs
+        except PolishError as e:
+            logs.append({**e.log, "path": path})
+        except Exception as e:       # HTTP error / timeout: same recovery chain
+            logs.append({"model": model_cfg["slug"], "path": path, "error": str(e)[:200]})
+    return None, "unpolished", logs
+
+
+def load_polish_models(config_path, model_override=None):
+    """(primary_cfg, fallback_cfg or None) from config/models.json."""
+    try:
+        with open(config_path, encoding="utf-8") as f:
+            cfg = json.load(f)
+    except FileNotFoundError:
+        cfg = {}
+    primary = dict(cfg.get("stage_b_prefilter_model") or {"slug": DEFAULT_MODEL})
+    if model_override:
+        primary = {"slug": model_override}
+    fallback = cfg.get("stage_b_prefilter_fallback_model")
+    return primary, (dict(fallback) if fallback else None)
 
 
 def main():
@@ -154,33 +232,81 @@ def main():
                      help="Fraction of candidates that must agree on has_subtext+category to "
                           "auto-resolve (default 1.0 = strict unanimity, no dissenters at all)")
     ap.add_argument("--sleep", type=float, default=0.5)
+    ap.add_argument("--repolish-from", default=None,
+                     help="Re-polish only the rows in this earlier --resolved file that fell back to "
+                          "unpolished text (candidates come from --in); writes the full, updated "
+                          "file to --resolved and leaves --needs-cowork untouched")
     args = ap.parse_args()
 
     api_key = os.environ.get("OPENROUTER_API_KEY")
     if not api_key:
         raise SystemExit("Set OPENROUTER_API_KEY in your environment first.")
 
-    model_slug = args.model
-    provider, api_model = None, None
-    if not model_slug:
-        try:
-            with open(args.config, encoding="utf-8") as f:
-                cfg = json.load(f)
-            pf_cfg = cfg.get("stage_b_prefilter_model", {})
-            model_slug = pf_cfg.get("slug", DEFAULT_MODEL)
-            provider = pf_cfg.get("provider")
-            api_model = pf_cfg.get("api_model")
-        except FileNotFoundError:
-            model_slug = DEFAULT_MODEL
-
+    primary, fallback = load_polish_models(args.config, args.model)
     rows = load_jsonl(args.infile)
     groups = group_by_source(rows)
     print(f"Loaded {len(rows)} candidate rows across {len(groups)} sentences.")
-    print(f"Pre-filter model: {model_slug}  |  min agreement: {args.min_agreement}")
+    print(f"Polish model: {primary['slug']}  |  fallback: {(fallback or {}).get('slug')}  |  "
+          f"min agreement: {args.min_agreement}")
+
+    paths, finish = Counter(), Counter()
+
+    def resolve(source_text, cands, valid, has_subtext, category, agreeing, fraction):
+        picked, path, logs = polish(source_text, has_subtext, category, agreeing, primary, fallback, api_key)
+        paths[path] += 1
+        finish.update(f"{l['model']}:{l.get('finish_reason') or 'error'}" for l in logs)
+        last = logs[-1] if logs else {}
+        tokens = f"{last.get('completion_tokens')} tok / {last.get('reasoning_tokens')} reasoning"
+        row = {
+            "source_lang": cands[0]["source_lang"],
+            "source_text": source_text,
+            "has_subtext": has_subtext,
+            "category": category,
+            "_stage_b_polish_path": path,
+            "_stage_b_polish_calls": logs,
+            "_stage_b_candidate_count": len(valid),
+            "_stage_b_agreement_fraction": fraction,
+        }
+        if picked:
+            row.update(translation=picked["translation"], nuance_note=picked.get("nuance_note", ""),
+                       _stage_b_verification="auto_resolved_prefilter",
+                       _stage_b_prefilter_model=last["model"])
+            print(f"  auto-resolved [{path}, {last.get('finish_reason')}, {tokens}]: {source_text[:60]}")
+        else:
+            # The verdict is already settled (every valid candidate agreed) -- only polishing
+            # failed on every path. Sending it to Cowork would waste a human slot on something
+            # that was never contested, so keep the first agreeing candidate verbatim, unpolished.
+            first = agreeing[0]
+            row.update(translation=first["translation"], nuance_note=first.get("nuance_note", ""),
+                       _stage_b_verification="auto_resolved_prefilter_fallback_unpolished",
+                       _stage_b_prefilter_model=primary["slug"],
+                       _stage_b_prefilter_error="; ".join(l.get("error", "") for l in logs)[:300])
+            print(f"  auto-resolved UNPOLISHED (every polish path failed): {source_text[:60]}")
+        time.sleep(args.sleep)
+        return row
+
+    by_source = dict(groups)
+    if args.repolish_from:
+        resolved = load_jsonl(args.repolish_from)
+        todo = [i for i, r in enumerate(resolved)
+                if r.get("_stage_b_verification") == "auto_resolved_prefilter_fallback_unpolished"]
+        print(f"Re-polishing {len(todo)} unpolished rows from {args.repolish_from}")
+        for i in todo:
+            src = resolved[i]["source_text"]
+            valid = [c for c in by_source.get(src, []) if "_translation_suspect" not in c]
+            eligible, has_subtext, category, agreeing, fraction = eligible_for_autoresolve(valid, args.min_agreement)
+            if not eligible:
+                print(f"  skipped (no longer unanimous in --in): {src[:60]}")
+                continue
+            resolved[i] = resolve(src, by_source[src], valid, has_subtext, category, agreeing, fraction)
+        write_jsonl(args.resolved, resolved)
+        print(f"\nDone. Re-polished {len(todo)} rows -> {args.resolved}.")
+        print(f"Paths: {dict(paths)}")
+        print(f"finish_reason per call: {dict(finish)}")
+        return
 
     resolved, needs_cowork = [], []
-    auto_count, contested_count, error_count = 0, 0, 0
-
+    contested_count = 0
     for source_text, cands in groups:
         valid = [c for c in cands if "_translation_suspect" not in c]
         eligible, has_subtext, category, agreeing, fraction = eligible_for_autoresolve(
@@ -190,55 +316,17 @@ def main():
             contested_count += 1
             needs_cowork.extend(cands)  # pass through unchanged, including suspect ones
             continue
-
-        try:
-            picked = call_glm(source_text, has_subtext, category, agreeing, model_slug, api_key,
-                               provider=provider, api_model=api_model)
-            resolved.append({
-                "source_lang": cands[0]["source_lang"],
-                "source_text": source_text,
-                "translation": picked["translation"],
-                "has_subtext": has_subtext,
-                "category": category,
-                "nuance_note": picked.get("nuance_note", ""),
-                "_stage_b_verification": "auto_resolved_prefilter",
-                "_stage_b_prefilter_model": model_slug,
-                "_stage_b_candidate_count": len(valid),
-                "_stage_b_agreement_fraction": fraction,
-            })
-            auto_count += 1
-            print(f"  auto-resolved ({fraction:.0%} agree): {source_text[:60]}")
-        except Exception as e:
-            # The verdict is already settled (every valid candidate agreed) -- only the
-            # polish/pick call to the prefilter model failed (rate limit, bad JSON, etc).
-            # Falling through to the Cowork queue here would waste a human verification
-            # slot on something that was never actually contested, so instead fall back to
-            # the first agreeing candidate's translation/nuance_note verbatim, unpolished.
-            error_count += 1
-            fallback = agreeing[0]
-            resolved.append({
-                "source_lang": cands[0]["source_lang"],
-                "source_text": source_text,
-                "translation": fallback["translation"],
-                "has_subtext": has_subtext,
-                "category": category,
-                "nuance_note": fallback.get("nuance_note", ""),
-                "_stage_b_verification": "auto_resolved_prefilter_fallback_unpolished",
-                "_stage_b_prefilter_model": model_slug,
-                "_stage_b_candidate_count": len(valid),
-                "_stage_b_agreement_fraction": fraction,
-                "_stage_b_prefilter_error": str(e)[:200],
-            })
-            auto_count += 1
-            print(f"  auto-resolved via unpolished fallback (prefilter call failed: {e}): {source_text[:60]}")
-        time.sleep(args.sleep)
+        resolved.append(resolve(source_text, cands, valid, has_subtext, category, agreeing, fraction))
 
     write_jsonl(args.resolved, resolved)
     write_jsonl(args.needs_cowork, needs_cowork)
 
-    print(f"\nDone. {len(groups)} sentences: {auto_count} auto-resolved "
-          f"({error_count} of those via unpolished fallback after a prefilter call error), "
+    print(f"\nDone. {len(groups)} sentences: {len(resolved)} auto-resolved "
+          f"({paths['unpolished']} of those unpolished after every polish path failed), "
           f"{contested_count} genuinely contested -> {args.needs_cowork}.")
+    print(f"Polish paths: primary {paths['primary']}, primary_retry {paths['primary_retry']}, "
+          f"fallback_model {paths['fallback_model']}, unpolished {paths['unpolished']}")
+    print(f"finish_reason per call: {dict(finish)}")
     print(f"Cowork workload: {len({r['source_text'] for r in needs_cowork})} sentences "
           f"(down from {len(groups)}).")
     print("Reminder: auto-resolved rows still need to appear in the human calibration sample "

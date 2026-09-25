@@ -64,7 +64,32 @@
       ],
       "allow_fallbacks": true
     },
-    "_provider_note": "DeepInfra is 50% cheaper than the post-promo standard rate as of 2026-09-20"
+    "_provider_note": "DeepInfra is 50% cheaper than the post-promo standard rate as of 2026-09-20",
+    "max_tokens": 1500,
+    "reasoning": {
+      "effort": "low"
+    },
+    "response_format": {
+      "type": "json_object"
+    },
+    "_polish_note": "2026-09-25: 27/122 batch-4 polishes fell back to unpolished text. Cause: with max_tokens 400 and no reasoning setting, fallback providers (DeepInfra was 429ing upstream) spent up to 472 reasoning tokens -> finish_reason=length, empty content. Reasoning can't be disabled for glm-5.3-flash; effort=low keeps it to ~20-40 tokens (15/15 clean in a re-test)."
+  },
+  "stage_b_prefilter_fallback_model": {
+    "slug": "deepseek/deepseek-v4-flash",
+    "notes": "Second polish model for stage_b_prefilter.py, used when glm-5.3-flash returns empty or unparseable JSON twice. Already in the Stage A roster; same pinned route.",
+    "provider": {
+      "order": [
+        "streamlake"
+      ],
+      "allow_fallbacks": true
+    },
+    "max_tokens": 1500,
+    "reasoning": {
+      "effort": "low"
+    },
+    "response_format": {
+      "type": "json_object"
+    }
   },
   "seed_generator_model": {
     "slug": "deepseek/deepseek-v4-flash",

@@ -95,7 +95,8 @@ def main():
 
     if live is not None:
         watched = [g["slug"] for g in config["stage_a_generators"]]
-        for key in ("stage_b_prefilter_model", "seed_generator_model", "stage_c_coverage_model"):
+        for key in ("stage_b_prefilter_model", "stage_b_prefilter_fallback_model", "seed_generator_model",
+                    "stage_c_coverage_model"):
             if key in config:
                 watched.append(config[key]["slug"])
         for slug in watched:
