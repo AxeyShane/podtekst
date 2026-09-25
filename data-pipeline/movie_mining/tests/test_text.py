@@ -76,6 +76,21 @@ class TextTests(unittest.TestCase):
         self.assertEqual(pair_passes("Субтитры сделаны командой ABC тут", "Subtitles by team ABC here")[1], "credits")
         self.assertEqual(film_id_from_ids_line("en/1999/12345/6.xml.gz\tru/1999/12345/7.xml.gz"), "1999/12345")
 
+    def test_mojibake_and_interjection_filters(self):
+        rejected = {("Ќа каком основании?", "On what grounds?"): "mojibake",
+                    ("ƒа, да. я сейчас.", "Yes Yes. I am now."): "mojibake",
+                    ("Я знаю, что делать.", "I knoƒ what to do."): "mojibake",      # ƒ in EN
+                    ("О, о-о-о, ну.", "Oh, oh-oh-oh, well."): "interjection",
+                    ("Хе-хе-хе.", "Heh- heh-heh ."): "interjection",
+                    ("Не-не-не!", "No-no - no !"): "interjection",
+                    ('"Б, А". "Б, А".', '"B , A". "B , A".'): "interjection"}
+        for (ru, en), why in rejected.items():
+            self.assertEqual(pair_passes(ru, en), (False, why), ru)
+        for ru, en in [("Кому ж ещё?", "For whom else?"), ("Ну, ну, ну, не надо.", "Now, now, don't."),
+                       ("Встретимся в кафе у Пьера.", "Meet me at the café by Pierre."),
+                       ("Сегодня 22 июня!", "Today is June 22!")]:
+            self.assertEqual(pair_passes(ru, en), (True, ""), ru)
+
     def test_cues(self):
         self.assertEqual(address_register("Я тебе говорил"), "ty")
         self.assertEqual(address_register("Вам помочь?"), "vy")

@@ -58,6 +58,9 @@ The miner works in five steps:
 1. **Clean and filter.** Strip markup, drop credits, multi-speaker cues and
    duplicates, and keep lines of 3–25 words. Drop broken Russian: more than one
    word unknown to the pymorphy dictionary, or a doubled capital like «Мможет».
+   Drop mis-decoded text (letters outside Russian Cyrillic/ASCII on the RU side,
+   outside ASCII/Latin-1 on the EN side, e.g. «Ќа», «ƒа») and lines with no content
+   words («О, о-о-о.», «Хе-хе-хе.», «Не-не-не!»).
    The pool is sampled evenly across the corpus.
 2. **Check alignment.** A LaBSE cosine of at least 0.75 between RU and EN
    confirms the pair really is a translation; OpenSubtitles alignment is noisy.

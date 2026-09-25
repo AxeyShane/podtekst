@@ -50,6 +50,33 @@ def is_multi_speaker(raw: str) -> bool:
     return len(re.findall(r"(^|\n|\s)[-–—]\s*\S", raw)) >= 2
 
 
+# Letters that don't belong in the line's language, typical of mis-decoded (cp1251/cp1252) subtitles:
+# «Ќа каком основании?», «ƒа, да.». RU lines may hold Russian Cyrillic and ASCII Latin (names, brands);
+# EN lines ASCII plus Latin-1 accents (café, naïve).
+_RU_FOREIGN = re.compile(r"[^\W\d_А-Яа-яЁёA-Za-z]")
+_EN_FOREIGN = re.compile(r"[^\W\d_A-Za-zÀ-ÖØ-öø-ÿ]")
+
+# Sounds and filler that make a line "divergent" from MT without carrying any meaning.
+_INTERJECTIONS = {
+    "о", "ох", "ах", "ай", "ой", "эй", "ух", "уф", "ха", "хе", "хи", "хм", "м", "мм", "ммм", "а", "э", "у", "ну",
+    "ага", "угу", "эх", "фу", "тсс", "бр", "не", "нет", "да", "стоп",
+    "oh", "ah", "aah", "ooh", "uh", "um", "hm", "hmm", "mm", "eh", "ha", "heh", "hey", "huh", "wow", "whoa",
+    "no", "yes", "yeah", "stop", "o",
+}
+
+
+def has_mojibake(ru: str, en: str) -> bool:
+    return bool(_RU_FOREIGN.search(ru) or _EN_FOREIGN.search(en))
+
+
+def is_interjection_only(text: str) -> bool:
+    """True when the line has no content words: only interjections, single letters or one repeated
+    token («О, о-о-о.», «Хе-хе-хе.», «Не-не-не!», «Б, А»)."""
+    toks = [t for t in re.split(r"[\W_]+", text.lower().replace("ё", "е")) if t and not t.isdigit()]
+    content = {t for t in toks if len(t) > 1 and t not in _INTERJECTIONS}
+    return not content or len(set(toks)) < 2
+
+
 def latin_share(text: str) -> float:
     """Fraction of letters that are Latin (RU lines may carry a brand name or two)."""
     lat, cyr = len(LATIN.findall(text)), len(CYRILLIC.findall(text))
@@ -70,6 +97,10 @@ def pair_passes(ru: str, en: str, min_words: int = 3, max_words: int = 25,
     wr, we = word_count(ru), word_count(en)
     if not (min_words <= wr <= max_words and min_words <= we <= max_words):
         return False, "length"
+    if has_mojibake(ru, en):
+        return False, "mojibake"
+    if is_interjection_only(ru) or is_interjection_only(en):
+        return False, "interjection"
     ratio = max(wr, we) / max(1, min(wr, we))
     if ratio > max_len_ratio:
         return False, "len_ratio"
