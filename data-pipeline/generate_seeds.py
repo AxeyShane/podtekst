@@ -164,18 +164,21 @@ def call_model(category, lang, n, model_slug, api_key, max_tokens=1500,
             ],
             "max_tokens": max_tokens,
             "temperature": 1.0,
+            "reasoning": {"effort": "low"},     # keep reasoning from eating the output budget
             **({"provider": provider} if provider else {}),
         },
         timeout=45,
     )
     if not response.ok:
         raise RuntimeError(f"HTTP {response.status_code}: {response.text[:300]}")
-    text = response.json()["choices"][0]["message"].get("content", "").strip()
+    text = (response.json()["choices"][0]["message"].get("content") or "").strip()
+    if not text:
+        raise RuntimeError("empty content")
     lines = [l.strip().strip('"').lstrip("0123456789.- ") for l in text.splitlines()]
     return [l for l in lines if l]
 
 
-def call_with_retry(category, lang, n, model_slug, api_key):
+def call_with_retry(category, lang, n, model_slug, api_key, provider=None, api_model=None):
     last_error = None
     for attempt in range(3):
         try:
@@ -251,7 +254,8 @@ def main():
             while len(collected) < n:
                 want = min(args.chunk_size, n - len(collected) + 3)  # ask a few extra to survive dedup
                 print(f"  requesting {want} {category}/{lang} sentences...")
-                lines = call_with_retry(category, lang, want, model_slug, api_key)
+                lines = call_with_retry(category, lang, want, model_slug, api_key,
+                                        provider=provider, api_model=api_model)
                 for line in lines:
                     if line in existing or line in seen_this_run:
                         continue
