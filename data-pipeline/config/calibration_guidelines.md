@@ -65,12 +65,60 @@ already deliver it?
     independently verifiable -- treat as a likely-fabricated model claim and
     go with the plain reading.
 
+## Consistency rules settled in batches 4-5 (2026-09-25)
+
+Earlier precedents conflicted on these patterns; these are the lines now used.
+
+12. RU->EN polite вы to a stranger, server or colleague ("Вы не могли бы...",
+    "Скажите...", "Подскажите...", "Проходите...", "Будьте добры...",
+    "Передайте...") -> true. Exceptions -> false: the sentence opens with
+    "Извините/Простите" (English "Excuse me" carries the register, rule 3), or a
+    title address makes вы predictable ("Доктор, вы...", "Господин директор...",
+    "Уважаемый клиент...").
+13. RU->EN plain ты request, question or statement where the verb/pronoun is
+    the only closeness signal ("Передай соль", "Позвони мне...", "Не забудь...",
+    "Ты сегодня придёшь?") -> true. Explicit family/endearment address ("Мам",
+    "Дорогой", "Детка") or a casual opener that English also carries
+    ("Привет", "Братан", "Эй, приятель") -> false.
+14. EN->RU: casual "Can you...?" / "Hey, ..." requests -> false (ты is
+    predictable). "Please + imperative" or a bare imperative with no cue
+    ("Please set the table", "Come here and help me", "Take a seat") -> true.
+    Workplace directives with no politeness cue ("I need you to finish this by
+    noon") -> true when Russian genuinely could go either way (the candidate
+    models splitting between ты and вы is good evidence). Polite hedges to
+    strangers and business requests stay false (rule 3).
+15. Idioms: true when a word-for-word rendering is wrong or misleading and the
+    target language uses a different expression ("hit a snag", "сбить с
+    толку", "общий язык"). False when both languages share the same idiom or
+    image ("scapegoat"/«козёл отпущения», «тёмная лошадка», «в одной лодке»,
+    «взять быка за рога», «нож в спину», «дар Мидаса»), or the calque is
+    established in the target language.
+16. Sarcasm: clear ironic praise/delight with a marker ("exactly what I always
+    dreamed of", "I love hearing your opinion", "You look... interesting",
+    "must be so pleased with that result") -> true (practice since batch 2).
+    Backhanded compliments, faint praise, protesting too much, sour grapes and
+    masked disappointment -> false (rule 7). A bare phrase with no ironic marker
+    ("What a wonderful surprise", "Thanks for explaining that so thoroughly")
+    -> false: either reading carries through translation identically.
+17. emotional_subtext -> true only when a culture-specific emotion concept
+    doesn't map across ("обиделась": a sulk that expects an apology).
+    Resignation, passive aggression, understatement and exasperation fall
+    under rules 7-9 -> false. Consequence: generators' emotional_subtext
+    labels are mostly calibrated away, so seed this category with
+    culture-specific emotion words, not with passive-aggressive phrasing.
+18. Two-line exchanges that switch from вы to ты (or back) -> formality_shift
+    true; the switch itself is the nuance.
+
 ## Ambiguous cases (needs_human_review)
 
 11. Standalone sentences with no conversation history where sincere-vs-
     sarcastic tone is a genuine coin-flip (e.g. repeated "He's always so X,
     as usual" pattern, "I'm so lucky that you took on this responsibility")
     -> `needs_human_review`, not a forced guess.
+    If a human reviewer can't decide either, the row stays out of the
+    training export (a forced label would teach a coin-flip as fact) and is
+    kept as an ambiguity eval set: the fine-tuned model should hedge on these
+    rather than pick one reading confidently.
 
 ## Pending review
 
