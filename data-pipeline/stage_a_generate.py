@@ -56,6 +56,15 @@ class RateLimited(RuntimeError):
     """Still HTTP 429 after every backoff; the pair is worth retrying later."""
 
 
+class NetworkDown(RateLimited):
+    """No connection to OpenRouter (DNS / connect failure) after every backoff. Like a 429 it says
+    nothing about the model: never counted toward the circuit breaker or model_health.json.
+    (Batch 6b: a ~5 min outage tripped the breaker for all 4 models in every shard.)"""
+
+
+NETWORK_WAITS = (10, 20, 40, 60, 120, 120)
+
+
 class OutOfCredits(RuntimeError):
     """HTTP 402: the balance ran out despite the guard."""
 
@@ -192,11 +201,23 @@ def call_model_with_retry(sentence: str, model_slug: str, api_key: str,
     - Empty content (reasoning ate the whole token budget): retry once with
       a much larger budget rather than raising the baseline for every call.
     """
+    net_waits = list(NETWORK_WAITS)
     for attempt, wait in enumerate(RATE_LIMIT_WAITS + (None,)):
         try:
             return call_model(sentence, model_slug, api_key, provider=provider, api_model=api_model)
         except OutOfCredits:
             raise
+        except requests.exceptions.ConnectionError as e:   # DNS / refused / connect timeout
+            while net_waits:
+                w = net_waits.pop(0)
+                print(f"    -> network error, retrying in {w}s ({type(e).__name__})")
+                time.sleep(w)
+                try:
+                    return call_model(sentence, model_slug, api_key, provider=provider, api_model=api_model)
+                except requests.exceptions.ConnectionError as e2:
+                    e = e2
+            raise NetworkDown(f"no connection to OpenRouter after {sum(NETWORK_WAITS)}s of retries: "
+                              f"{str(e)[:150]}") from e
         except RuntimeError as e:
             msg = str(e)
             if "HTTP 429" in msg:
@@ -263,7 +284,7 @@ def rekey_to_seeds(rows: list[dict], seeds: list[str], min_ratio: float = 0.95, 
 
 # Failure rows whose error starts with one of these are "not attempted / retry later", not model
 # failures: they never count toward the circuit breaker or model_health.json.
-NOT_A_MODEL_FAILURE = ("skipped --", "rate limited --", "out of credits --")
+NOT_A_MODEL_FAILURE = ("skipped --", "rate limited --", "network --", "out of credits --")
 
 
 def is_model_failure(row: dict) -> bool:
@@ -332,9 +353,10 @@ def generate(seeds, generators, api_key, breaker_threshold=CIRCUIT_BREAKER_CONSE
                         on_result(annotated)
                     consecutive_fail[slug] = 0
                     print(f"[{n}/{total_calls}] ok   model={slug}  has_subtext={annotated.get('has_subtext')}")
-                elif isinstance(err, RateLimited):
-                    failures.append({"source_text": sentence, "model": slug, "error": f"rate limited -- {err}"})
-                    print(f"[{n}/{total_calls}] RATE-LIMITED model={slug} (retry later, not a model failure)")
+                elif isinstance(err, RateLimited):          # includes NetworkDown
+                    kind = "network" if isinstance(err, NetworkDown) else "rate limited"
+                    failures.append({"source_text": sentence, "model": slug, "error": f"{kind} -- {err}"})
+                    print(f"[{n}/{total_calls}] {kind.upper()} model={slug} (retry later, not a model failure)")
                 elif isinstance(err, OutOfCredits):
                     failures.append({"source_text": sentence, "model": slug, "error": f"out of credits -- {err}"})
                     out_of_credits = err

@@ -103,6 +103,34 @@ class RateLimitTests(unittest.TestCase):
         self.assertFalse(any(sa.is_model_failure(f) for f in failures))  # ...but not model failures
         self.assertEqual(len(results), 10)                               # model b unaffected
 
+    def test_network_error_waits_then_recovers(self):
+        outage = [sa.requests.exceptions.ConnectionError("getaddrinfo failed")] * 2
+        def flaky(*a, **k):
+            if outage:
+                raise outage.pop()
+            return ok_call(a[0], a[1], a[2])
+        with mock.patch.object(sa, "call_model", side_effect=flaky), mock.patch.object(sa.time, "sleep") as sleep:
+            row = sa.call_model_with_retry("s", "model/a", "k")
+        self.assertEqual(row["_generator_model"], "model/a")
+        self.assertEqual([c.args[0] for c in sleep.call_args_list], list(sa.NETWORK_WAITS[:2]))
+
+    def test_persistent_outage_is_network_down_and_never_trips_the_breaker(self):
+        down = sa.requests.exceptions.ConnectionError("getaddrinfo failed")
+        with mock.patch.object(sa, "call_model", side_effect=down), mock.patch.object(sa.time, "sleep"):
+            with self.assertRaises(sa.NetworkDown):
+                sa.call_model_with_retry("s", "model/a", "k")
+
+        def offline(sentence, slug, api_key, **kw):
+            raise sa.NetworkDown("no connection")
+        _, failures, _, consecutive, tripped = sa.generate([f"s{i}" for i in range(6)], GENS, "k", sleep=0,
+                                                            call=offline, check_balance=lambda _: True,
+                                                            parallel=False)
+        self.assertEqual(tripped, set())                                   # 6 seeds > breaker threshold
+        self.assertEqual(consecutive, {"model/a": 0, "model/b": 0})
+        self.assertEqual(len(failures), 12)
+        self.assertTrue(all(f["error"].startswith("network --") for f in failures))
+        self.assertFalse(any(sa.is_model_failure(f) for f in failures))
+
     def test_real_errors_still_trip_the_breaker(self):
         def a_broken(sentence, slug, api_key, **kw):
             if slug == "model/a":
