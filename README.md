@@ -1,4 +1,5 @@
 <div align="center">
+<p align="right"><a href="README.ru.md">Read in Russian</a></p>
 
 # Podtekst
 
