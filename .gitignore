@@ -48,3 +48,4 @@ data-pipeline/seeds_batch6b.txt
 data-pipeline/*_failures*.csv
 *.wav
 data-pipeline/*_relabels.json
+data-pipeline/dataset/
