@@ -116,7 +116,38 @@ Rules:
 - For formality_shift, focus on ty/vy (informal/formal "you") and how that would
   be lost or misrepresented in English, or how English lacks a marker Russian has.
 - Keep nuance_note under 20 words.
+- Russian marks gender in past-tense verbs, short adjectives and some nouns. If a
+  context line gives the speaker's or addressee's gender, follow it. If it doesn't,
+  use masculine forms for both. Never use slash forms like "сделал(а)".
 """
+
+# Optional per-seed context from a seeds .meta.jsonl (speaker_gender / addressee_gender:
+# "male" or "female"). Sent as a second system message so models don't echo it back as part
+# of source_text. Empty unless --meta is passed.
+GENDER_HINTS: dict[str, dict] = {}
+
+
+def load_gender_hints(meta_path: str) -> dict[str, dict]:
+    """Read speaker/addressee gender per seed from a seeds .meta.jsonl. Unknown values are ignored."""
+    hints = {}
+    with open(meta_path, encoding="utf-8") as f:
+        for line in f:
+            if not line.strip():
+                continue
+            m = json.loads(line)
+            h = {k: m[k] for k in ("speaker_gender", "addressee_gender") if m.get(k) in ("male", "female")}
+            if m.get("seed") and h:
+                hints[m["seed"]] = h
+    return hints
+
+
+def gender_context(hint: dict) -> str:
+    parts = []
+    if "speaker_gender" in hint:
+        parts.append(f"the speaker is {'a man' if hint['speaker_gender'] == 'male' else 'a woman'}")
+    if "addressee_gender" in hint:
+        parts.append(f"the person addressed is {'a man' if hint['addressee_gender'] == 'male' else 'a woman'}")
+    return "Context for this sentence: " + " and ".join(parts) + "."
 
 
 def load_config(path: str) -> dict:
@@ -142,6 +173,8 @@ def call_model(sentence: str, model_slug: str, api_key: str, max_tokens: int = 1
             "model": api_model or model_slug,
             "messages": [
                 {"role": "system", "content": SYSTEM_PROMPT},
+                *([{"role": "system", "content": gender_context(GENDER_HINTS[sentence])}]
+                  if sentence in GENDER_HINTS else []),
                 {"role": "user", "content": sentence},
             ],
             "max_tokens": max_tokens,
@@ -182,6 +215,8 @@ def call_model(sentence: str, model_slug: str, api_key: str, max_tokens: int = 1
     if echoed is not None and echoed != sentence:
         parsed["_model_echoed_source_text"] = echoed
     parsed["_generator_model"] = model_slug
+    for k, v in GENDER_HINTS.get(sentence, {}).items():
+        parsed[f"_{k}"] = v
     if parsed.get("source_lang") == "en":
         src_norm = sentence.strip().lower()
         trans_norm = str(parsed.get("translation", "")).strip().lower()
@@ -403,6 +438,10 @@ def main():
                               "models added after a batch was generated)")
     parser.add_argument("--resume", action="store_true",
                          help="Keep the existing --out file and skip (seed, model) pairs already in it")
+    parser.add_argument("--meta", default=None,
+                         help="Seeds .meta.jsonl; speaker_gender / addressee_gender ('male'/'female') "
+                              "per seed are passed to the models as context. Without it, masculine "
+                              "forms are the default.")
     parser.add_argument("--sequential", action="store_true",
                          help="Call the generators one at a time instead of concurrently per seed")
     args = parser.parse_args()
@@ -425,6 +464,9 @@ def main():
             raise SystemExit(f"--models not in the active roster: {sorted(unknown)}")
         generators = [g for g in generators if g["slug"] in wanted]
     seeds = load_seeds(args.seeds)
+    if args.meta:
+        GENDER_HINTS.update(load_gender_hints(args.meta))
+        print(f"Gender context for {sum(1 for s in seeds if s in GENDER_HINTS)} of {len(seeds)} seeds.")
     done = set()
     if args.resume and os.path.exists(args.out):
         with open(args.out, encoding="utf-8") as f:

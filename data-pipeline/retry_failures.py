@@ -109,6 +109,8 @@ def main():
     ap.add_argument("--out", required=True, help="Output JSONL of successfully retried rows")
     ap.add_argument("--config", default="config/models.json")
     ap.add_argument("--sleep", type=float, default=0.5)
+    ap.add_argument("--meta", default=None,
+                    help="Seeds .meta.jsonl with speaker_gender / addressee_gender, as in stage_a_generate.py")
     ap.add_argument("--min-balance", type=float, default=sa.MIN_BALANCE_USD,
                     help="Stop cleanly when the OpenRouter balance drops under this many USD "
                          f"(checked every {sa.GUARD_CHUNK} pairs); the rest go to .still_failing.jsonl")
@@ -124,6 +126,8 @@ def main():
         raise SystemExit("Set OPENROUTER_API_KEY in your environment first.")
 
     config = sa.load_config(args.config)
+    if args.meta:
+        sa.GENDER_HINTS.update(sa.load_gender_hints(args.meta))
     active_slugs = {g["slug"] for g in config["stage_a_generators"]}
 
     pairs = (

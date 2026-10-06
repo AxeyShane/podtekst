@@ -19,6 +19,11 @@ Checks applied, per row:
   - echo/suspect: translation identical to source_text regardless of direction
     (stage_a_generate.py only checked the en->ru direction; this checks both)
   - dedup: exact duplicate (source_text, _generator_model) pairs within the file
+  - empty translation
+  - echo drift: the model's own echo of the source (_model_echoed_source_text, recorded by
+    stage_a_generate.py) is far from the real seed -- it translated a different sentence
+    (e.g. "The cat sat on the mat." -> «Кот сидел на коврике.») or only part of the seed.
+    Punctuation-only or typo-fix echoes stay well above the threshold.
 
 Rows that fail any check go to --rejects instead of --clean, and their
 source_text is added to --next-seeds (deduped against seeds already in
@@ -28,6 +33,7 @@ attempt rather than a quiet drop.
 """
 
 import argparse
+import difflib
 import json
 import re
 
@@ -35,6 +41,9 @@ ALLOWED_LANGS = {"ru", "en"}
 ALLOWED_CATEGORIES = {"formality_shift", "sarcasm", "idiom", "emotional_subtext", "none"}
 CYRILLIC_RE = re.compile(r"[Ѐ-ӿ]")
 NOTE_WORD_LIMIT = 25  # a little slack over the system prompt's stated 20-word target
+# Echo similarity below this means the model answered for another sentence. Real echoes seen so
+# far: punctuation/typo fixes 0.90-1.0; a dropped second sentence 0.67; garbled 0.47; unrelated 0.24.
+ECHO_MIN_RATIO = 0.8
 
 
 def load_jsonl(path):
@@ -95,6 +104,27 @@ def check_echo(row):
     return []
 
 
+def check_translation_present(row):
+    if not (row.get("translation") or "").strip():
+        return ["translation is empty"]
+    return []
+
+
+def _norm_echo(text):
+    text = re.sub(r"[^\w\s]", " ", text.lower())
+    return " ".join(text.split())
+
+
+def check_echo_drift(row):
+    echoed = row.get("_model_echoed_source_text")
+    if not isinstance(echoed, str):
+        return []
+    ratio = difflib.SequenceMatcher(None, _norm_echo(echoed), _norm_echo(row.get("source_text", ""))).ratio()
+    if ratio < ECHO_MIN_RATIO:
+        return [f"model echoed a different or partial source (similarity {ratio:.2f}): {echoed[:60]!r}"]
+    return []
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--in", dest="infile", required=True, help="Stage A output JSONL")
@@ -116,6 +146,8 @@ def main():
             problems += check_language_tag(row)
             problems += check_length(row)
             problems += check_echo(row)
+            problems += check_translation_present(row)
+            problems += check_echo_drift(row)
 
         key = (row.get("source_text"), row.get("_generator_model"))
         if key in seen_pairs:
