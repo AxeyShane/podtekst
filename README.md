@@ -104,7 +104,7 @@ flowchart LR
 | Path | What's there |
 | --- | --- |
 | [`data-pipeline/`](data-pipeline/) | Dataset generation and verification: seeds, model ensemble, checks, prefilter |
-| [`data-pipeline/movie_mining/`](data-pipeline/movie_mining/) | Film audio → clean dialogue clips; OpenSubtitles miner |
+| [`data-pipeline/movie_mining/`](data-pipeline/movie_mining/) | Film audio → clean dialogue clips; OpenSubtitles miner; paired-subtitle aligner |
 
 Fine-tuning and the keyboard land here as those phases start. Detailed design, product and execution docs are kept out of this public repo.
 The code and pipeline tooling here are the public part of the project.
