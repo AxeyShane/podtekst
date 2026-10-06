@@ -51,3 +51,16 @@ class GenderHintsTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TruncatedReplyTest(unittest.TestCase):
+    def test_truncated_json_is_retried_with_more_tokens(self):
+        cut = mock.Mock(ok=True, status_code=200, json=lambda: {
+            "choices": [{"finish_reason": "length",
+                         "message": {"content": '{"source_lang": "ru", "source_text": "x", "translation": "In the circ'}}]})
+        full = ok_response({"source_lang": "ru", "source_text": "x", "translation": "y",
+                            "has_subtext": False, "category": "none", "nuance_note": ""})
+        with mock.patch.object(sa.requests, "post", side_effect=[cut, full]) as post:
+            row = sa.call_model_with_retry("x", "m/x", "key")
+        self.assertEqual(row["translation"], "y")
+        self.assertEqual(post.call_args_list[1].kwargs["json"]["max_tokens"], 2500)

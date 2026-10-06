@@ -204,6 +204,11 @@ def call_model(sentence: str, model_slug: str, api_key: str, max_tokens: int = 1
     # outermost {...} block rather than assuming the response starts clean.
     start = text.find("{")
     end = text.rfind("}")
+    finish = data["choices"][0].get("finish_reason")
+    if start != -1 and (end == -1 or end < start or finish == "length"):
+        # The JSON was opened but never closed: the reply ran out of max_tokens mid-object
+        # (long nuance notes plus reasoning). Retried once with a bigger budget.
+        raise RuntimeError(f"TRUNCATED reply from {model_slug} (finish_reason={finish}): {text[-120:]}")
     if start == -1 or end == -1 or end < start:
         raise RuntimeError(f"No JSON object found in response from {model_slug}: {text[:300]}")
     text = text[start:end + 1]
@@ -233,8 +238,8 @@ def call_model_with_retry(sentence: str, model_slug: str, api_key: str,
     """Wraps call_model with two targeted retry strategies:
     - HTTP 429 (rate limit): back off (RATE_LIMIT_WAITS) and retry; if it's still 429 after
       every wait, raise RateLimited so the caller can treat it as "retry later", not a failure.
-    - Empty content (reasoning ate the whole token budget): retry once with
-      a much larger budget rather than raising the baseline for every call.
+    - Empty or truncated content (reasoning or a long reply ate the token budget): retry
+      once with a much larger budget rather than raising the baseline for every call.
     """
     net_waits = list(NETWORK_WAITS)
     for attempt, wait in enumerate(RATE_LIMIT_WAITS + (None,)):
@@ -261,8 +266,8 @@ def call_model_with_retry(sentence: str, model_slug: str, api_key: str,
                 print(f"    -> rate limited, retrying in {wait}s (attempt {attempt + 1}/{len(RATE_LIMIT_WAITS)})")
                 time.sleep(wait)
                 continue
-            if "EMPTY_CONTENT" in msg:
-                print(f"    -> reasoning ate the budget, retrying once with more room")
+            if "EMPTY_CONTENT" in msg or "TRUNCATED" in msg:
+                print(f"    -> reply ran out of tokens, retrying once with more room")
                 return call_model(sentence, model_slug, api_key, max_tokens=2500,
                                   provider=provider, api_model=api_model)
             raise
