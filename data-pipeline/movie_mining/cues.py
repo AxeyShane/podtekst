@@ -3,6 +3,7 @@
 - ты/вы address detection via pymorphy2 (same lemma logic as agents/tools.py,
   reimplemented here so this module doesn't import crewai).
 - Idiom lexicon hits from config/idiom_lexicon_ru_en.json.
+- Culture-specific emotion words (обида, тоска, надрыв, ...) for --emotions mining.
 """
 from __future__ import annotations
 
@@ -80,3 +81,36 @@ def _lexicon() -> list[str]:
 def idiom_hits(ru: str) -> list[str]:
     low = ru.lower().replace("ё", "е")
     return [phrase for phrase in _lexicon() if phrase in low]
+
+
+# Emotion concepts that tend not to survive a literal translation (calibration rule 17:
+# only culture-specific emotion words count as emotional_subtext). Stem patterns, so every
+# inflected form matches without pymorphy: обида / обидно / обиделась / обидели ...
+# Deliberately left out: жаль (mostly "sorry" / "a pity", translates fine), грусть, печаль.
+EMOTION_PATTERNS = {
+    "obida": r"\bобид\w*",
+    "toska": r"\bтоск(?!ан)\w*",
+    "nadryv": r"\bнадрыв\w*",
+    "shchemit": r"\bщем(ит|ящ|ило)\w*",
+    "umilenie": r"\bумил(ени|я|ит|ён|ен)\w*",
+    "sovestno": r"\bсовестн\w*",
+    "nelovko": r"\bнеловк\w*|\bнеловко\b",
+    "zhalko": r"\bжалко\b",
+    "dushevno": r"\bдушевн\w*",
+    "dusha": r"на душе|душа (болит|ноет|не на месте)|в душе не чаю|отвести душу",
+    "toshno": r"\bтошно\b",
+    "dosada": r"\bдосад\w*",
+    "khandra": r"\bхандр\w*",
+    "raskis": r"\bраскис\w*",
+    "koshki": r"кошки скребут",
+    "ne_po_sebe": r"не по себе",
+    "neudobno": r"(как-то|мне|ей|ему|нам) неудобно",
+    "stydno": r"\bстыдно\b|\bстыдоб\w*",
+}
+_EMOTION_RE = {k: re.compile(v) for k, v in EMOTION_PATTERNS.items()}
+
+
+def emotion_hits(ru: str) -> list[str]:
+    """Keys of EMOTION_PATTERNS found in a Russian line (lowercased, ё -> е)."""
+    low = ru.lower().replace("ё", "е")
+    return [k for k, rx in _EMOTION_RE.items() if rx.search(low)]

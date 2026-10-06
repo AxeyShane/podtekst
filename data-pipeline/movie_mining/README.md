@@ -94,6 +94,22 @@ Fan-made subtitles in OpenSubtitles are noisier still.
 The main tuning knobs are `--min-align`, `--max-chrf`, `--min-span`,
 `--min-sem`, `--max-per-film` and `--directions ru-en,en-ru`.
 
+### Emotion-word mode
+
+```powershell
+python -m movie_mining.mine_subtitles --name emo1 --emotions --origin ru
+```
+
+For the emotional_subtext category. Only Russian lines with a culture-specific
+emotion word enter the pool (`cues.EMOTION_PATTERNS`: обида, тоска, надрыв,
+щемящий, умиление, совестно, неловко, жалко, душевно, «на душе», «кошки
+скребут», «не по себе», …). The patterns match word stems, so every inflected
+form counts. Direction is ru-en only, and a line does not have to diverge from
+the literal MT to qualify: the professional subtitle is kept as the reference
+either way, and divergent lines just rank first. `--max-per-emotion` (default 40)
+caps each emotion word so обида can't crowd out the rest, and `by_emotion` in the
+stats file shows the spread.
+
 ## Audio track
 
 ```powershell

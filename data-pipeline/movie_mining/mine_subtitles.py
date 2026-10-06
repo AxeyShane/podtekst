@@ -37,6 +37,15 @@ prefilter -> Cowork -> calibration cycle. The human subtitle is kept in the
 candidates file as reference context for verification.
 
     python -m movie_mining.mine_subtitles --name subs1 --max-lines 3000000
+
+--emotions switches to emotion-word mining for the emotional_subtext category: only
+Russian lines containing a culture-specific emotion word (cues.EMOTION_PATTERNS:
+обида, тоска, надрыв, умиление, ...) enter the pool, direction is ru-en only, the
+divergence threshold is not required (the professional subtitle is kept as reference
+either way; divergent lines just rank first), and each emotion word is capped at
+--max-per-emotion so обида can't crowd out the rest.
+
+    python -m movie_mining.mine_subtitles --name emo1 --emotions --origin ru
 """
 from __future__ import annotations
 
@@ -50,7 +59,7 @@ from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Iterator
 
-from .cues import address_register, idiom_hits, ru_fluency_issue
+from .cues import address_register, emotion_hits, idiom_hits, ru_fluency_issue
 from .text_utils import clean_line, film_id_from_ids_line, is_multi_speaker, normalize_key, pair_passes
 
 from .paths import FILM_LANG_CACHE, MINING_DIR, OPENSUBS_ZIP as DEFAULT_ZIP
@@ -87,9 +96,10 @@ def iter_pairs(zip_path: Path, max_lines: int | None = None) -> Iterator[tuple[s
 
 
 def collect_pool(pairs, pool_size: int, rng: random.Random, min_words: int, max_words: int,
-                 films: set[str] | None = None):
+                 films: set[str] | None = None, keep=None):
     """Filter + dedupe, then reservoir-sample so the pool spans the whole corpus
-    instead of only the first films in the file. films: if given, only these film keys."""
+    instead of only the first films in the file. films: if given, only these film keys.
+    keep: optional predicate on the cleaned Russian line (e.g. "has an emotion word")."""
     stats: Counter = Counter()
     seen: set[str] = set()
     pool: list[dict] = []
@@ -106,6 +116,9 @@ def collect_pool(pairs, pool_size: int, rng: random.Random, min_words: int, max_
         ok, why = pair_passes(ru, en, min_words=min_words, max_words=max_words)
         if not ok:
             stats[f"reject_{why}"] += 1
+            continue
+        if keep is not None and not keep(ru):
+            stats["reject_not_wanted"] += 1
             continue
         key = normalize_key(ru)
         if key in seen:
@@ -207,7 +220,8 @@ def divergence(literal: str, human: str) -> dict:
 
 # ---------------------------------------------------------------- scoring
 def score_pool(pool: list[dict], models, directions: list[str], min_align: float,
-               max_chrf: float, min_span: int = 2, max_chrf_local: float = 85.0, log=print) -> tuple[list[dict], Counter]:
+               max_chrf: float, min_span: int = 2, max_chrf_local: float = 85.0, log=print,
+               require_divergence: bool = True) -> tuple[list[dict], Counter]:
     stats: Counter = Counter()
     if not pool:
         return [], stats
@@ -234,7 +248,7 @@ def score_pool(pool: list[dict], models, directions: list[str], min_align: float
             chrf = div["chrf"]
             global_rewrite = chrf <= max_chrf
             local_swap = div["span"] >= min_span and chrf <= max_chrf_local
-            if not (global_rewrite or local_swap):
+            if require_divergence and not (global_rewrite or local_swap):
                 stats[f"reject_literal_close_{direction}"] += 1
                 continue
             rec = dict(p)
@@ -246,7 +260,7 @@ def score_pool(pool: list[dict], models, directions: list[str], min_align: float
                 "chrf_literal_vs_human": round(chrf, 1),
                 "diverged_span_words": div["span"],
                 "novelty": round(div["novelty"], 3),
-                "divergence_kind": "rewrite" if global_rewrite else "local_swap",
+                "divergence_kind": "rewrite" if global_rewrite else "local_swap" if local_swap else "literal",
             })
             candidates.append(rec)
         log(f"  {direction}: literal MT + chrF over {len(aligned)} pairs in {time.time() - t:.0f}s")
@@ -261,26 +275,33 @@ def score_pool(pool: list[dict], models, directions: list[str], min_align: float
     return candidates, stats
 
 
-def rank(candidates: list[dict], min_sem: float) -> list[dict]:
+def rank(candidates: list[dict], min_sem: float, emotions: bool = False) -> list[dict]:
     ranked = []
     for c in candidates:
         if c.get("sem_literal_vs_human", 1.0) < min_sem:
             continue
         c["address"] = address_register(c["ru"])
         c["idioms"] = idiom_hits(c["ru"])
+        c["emotions"] = emotion_hits(c["ru"])
         divergence = max((100.0 - c["chrf_literal_vs_human"]) / 100.0, c.get("novelty", 0.0))
         c["score"] = round(c["align_cos"] * divergence + 0.1 * min(2, len(c["idioms"])), 4)
-        c["bucket"] = "address" if c["address"] else "general"
+        if emotions:
+            c["bucket"] = "emotion"
+        else:
+            c["bucket"] = "address" if c["address"] else "general"
         ranked.append(c)
     ranked.sort(key=lambda c: c["score"], reverse=True)
     return ranked
 
 
-def select(ranked: list[dict], target: int, max_per_film: int, address_share: float = 0.3) -> list[dict]:
+def select(ranked: list[dict], target: int, max_per_film: int, address_share: float = 0.3,
+           max_per_emotion: int | None = None) -> list[dict]:
     """Top-N with a per-film cap so one talky film can't dominate, one record per
     source line (a pair can qualify in both directions), and the ты/вы bucket held
-    to address_share of the target. The rest is not back-filled with ты/вы lines."""
+    to address_share of the target. The rest is not back-filled with ты/вы lines.
+    max_per_emotion: cap per emotion word (first hit), for --emotions runs."""
     per_film: dict = defaultdict(int)
+    per_emotion: dict = defaultdict(int)
     seen_src: set[str] = set()
     max_address = int(target * address_share)
     n_address = 0
@@ -290,11 +311,16 @@ def select(ranked: list[dict], target: int, max_per_film: int, address_share: fl
         src = normalize_key(c["source"])
         if per_film[film] >= max_per_film or src in seen_src:
             continue
+        emo = (c.get("emotions") or [None])[0]
+        if max_per_emotion is not None and emo is not None and per_emotion[emo] >= max_per_emotion:
+            continue
         if c.get("bucket") == "address":
             if n_address >= max_address:
                 continue
             n_address += 1
         per_film[film] += 1
+        if emo is not None:
+            per_emotion[emo] += 1
         seen_src.add(src)
         out.append(c)
         if len(out) >= target:
@@ -316,6 +342,7 @@ def write_outputs(selected: list[dict], stats: Counter, name: str, out_dir: Path
     stats["by_bucket_direction"] = dict(Counter(f"{c.get('bucket')}/{c['direction']}" for c in selected))
     stats["with_address_pronoun"] = sum(1 for c in selected if c.get("address"))
     stats["with_idiom_hit"] = sum(1 for c in selected if c.get("idioms"))
+    stats["by_emotion"] = dict(Counter((c.get("emotions") or ["-"])[0] for c in selected))
     (out_dir / f"subs_stats_{name}.json").write_text(json.dumps(dict(stats), ensure_ascii=False, indent=2),
                                                      encoding="utf-8")
     with open(seeds_path, "w", encoding="utf-8") as f:
@@ -353,7 +380,14 @@ def main() -> None:
     ap.add_argument("--batch-size", type=int, default=64)
     ap.add_argument("--beams", type=int, default=2)
     ap.add_argument("--seed", type=int, default=13)
+    ap.add_argument("--emotions", action="store_true",
+                    help="Emotion-word mining: only RU lines with a culture-specific emotion word, ru-en only, "
+                         "no divergence requirement (see module docstring)")
+    ap.add_argument("--max-per-emotion", type=int, default=40,
+                    help="With --emotions: cap per emotion word in the selection")
     args = ap.parse_args()
+    if args.emotions:
+        args.directions = "ru-en"
 
     if not args.zip.exists():
         raise SystemExit(f"{args.zip} not found -- run: python -m movie_mining.fetch_opensubtitles")
@@ -376,17 +410,19 @@ def main() -> None:
 
     t = time.time()
     pool, stats = collect_pool(iter_pairs(args.zip, args.max_lines), args.pool_size,
-                               random.Random(args.seed), args.min_words, args.max_words, films=films)
+                               random.Random(args.seed), args.min_words, args.max_words, films=films,
+                               keep=(lambda ru: bool(emotion_hits(ru))) if args.emotions else None)
     stats.update(origin_stats)
     print(f"Read {stats['read']:,} lines, {stats['passed_filters']:,} passed filters, "
           f"pool {len(pool):,} ({time.time() - t:.0f}s)")
 
     models = Models(device, args.batch_size, args.beams)
     candidates, s2 = score_pool(pool, models, directions, args.min_align, args.max_chrf,
-                                args.min_span, args.max_chrf_local)
+                                args.min_span, args.max_chrf_local, require_divergence=not args.emotions)
     stats.update(s2)
-    ranked = rank(candidates, args.min_sem)
-    selected = select(ranked, args.target, args.max_per_film, args.address_share)
+    ranked = rank(candidates, args.min_sem, emotions=args.emotions)
+    selected = select(ranked, args.target, args.max_per_film, args.address_share,
+                      max_per_emotion=args.max_per_emotion if args.emotions else None)
     write_outputs(selected, stats, args.name, args.out_dir, args.out_dir / f"seeds_subs_{args.name}.txt",
                   args.seed_count)
 
