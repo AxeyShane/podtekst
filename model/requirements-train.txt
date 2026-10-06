@@ -1,0 +1,8 @@
+# Training/eval environment for model/ (separate venv from the data pipeline).
+# Install PyTorch with CUDA first, matching your driver, e.g.:
+#   pip install torch --index-url https://download.pytorch.org/whl/cu128
+transformers>=4.51
+peft>=0.15
+accelerate>=1.6
+bitsandbytes>=0.45   # only needed for --qlora
+sacrebleu>=2.4       # chrF in evaluate.py

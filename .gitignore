@@ -49,3 +49,8 @@ data-pipeline/*_failures*.csv
 *.wav
 data-pipeline/*_relabels.json
 data-pipeline/dataset/
+
+# Fine-tuning: SFT data carries dataset rows (some film/subtitle-derived); adapters,
+# merged checkpoints and eval outputs are large or contain those rows.
+model/data/
+model/out/
