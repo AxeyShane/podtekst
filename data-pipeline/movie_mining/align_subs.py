@@ -31,7 +31,9 @@ def clean(x):
 
 def read_srt(p):
     out = []
-    for b in re.split(r"\n\s*\n", open(p, encoding="utf-8-sig").read().strip()):
+    with open(p, encoding="utf-8-sig") as f:
+        raw = f.read()
+    for b in re.split(r"\n\s*\n", raw.strip()):
         L = b.strip().split("\n")
         if len(L) < 3 or "-->" not in L[1]: continue
         a, z = [s.strip() for s in L[1].split("-->")]
