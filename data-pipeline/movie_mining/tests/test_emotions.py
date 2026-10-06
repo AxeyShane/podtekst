@@ -77,5 +77,15 @@ class EmotionKeepTest(unittest.TestCase):
         self.assertTrue(ms.emotion_keep()("Мне очень стыдно."))
 
 
+class ProgressLineTest(unittest.TestCase):
+    def test_logs_every_n_lines(self):
+        lines = []
+        pairs = iter([("Привет, как дела у тебя?", "Hi, how are you?", "f")] * 5)
+        ms.collect_pool(pairs, 10, random.Random(0), 3, 25, progress_every=2,
+                        log=lambda msg, **kw: lines.append(msg))
+        self.assertEqual(len(lines), 2)
+        self.assertIn("read 2 lines", lines[0])
+
+
 if __name__ == "__main__":
     unittest.main()

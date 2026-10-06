@@ -120,7 +120,7 @@ def load_exclude_keys(paths) -> set[str]:
 
 
 def collect_pool(pairs, pool_size: int, rng: random.Random, min_words: int, max_words: int,
-                 films: set[str] | None = None, keep=None):
+                 films: set[str] | None = None, keep=None, progress_every: int = 1_000_000, log=print):
     """Filter + dedupe, then reservoir-sample so the pool spans the whole corpus
     instead of only the first films in the file. films: if given, only these film keys.
     keep: optional predicate on the cleaned Russian line (e.g. "has an emotion word")."""
@@ -128,8 +128,11 @@ def collect_pool(pairs, pool_size: int, rng: random.Random, min_words: int, max_
     seen: set[str] = set()
     pool: list[dict] = []
     kept = 0
+    t0 = time.time()
     for ru_raw, en_raw, film in pairs:
         stats["read"] += 1
+        if progress_every and stats["read"] % progress_every == 0:
+            log(f"  read {stats['read']:,} lines, {kept:,} passed filters ({time.time() - t0:.0f}s)", flush=True)
         if films is not None and film not in films:
             stats["reject_origin"] += 1
             continue
