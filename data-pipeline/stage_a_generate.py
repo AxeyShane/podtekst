@@ -69,6 +69,23 @@ class OutOfCredits(RuntimeError):
     """HTTP 402: the balance ran out despite the guard."""
 
 
+class Refused(RuntimeError):
+    """The model declined the seed (content policy) instead of returning JSON. Retrying the same
+    model won't change that, so retry_failures.py records these apart and doesn't retry them.
+    Not counted toward the circuit breaker: it says something about the seed, not the model."""
+
+
+REFUSAL_MARKERS = ("i cannot", "i can't", "i can not", "i won't", "i will not", "i'm unable",
+                   "i am unable", "i'm not able", "i am not able", "i must decline", "sorry, but i",
+                   "i'm sorry, but", "я не могу", "не могу выполнить")
+
+
+def looks_like_refusal(text: str) -> bool:
+    """A JSON-less reply whose opening reads as a policy refusal."""
+    head = (text or "").strip().lower()[:200]
+    return any(m in head for m in REFUSAL_MARKERS)
+
+
 def remaining_balance(api_key: str) -> float | None:
     """total_credits - total_usage from OpenRouter, or None if the endpoint can't be read."""
     try:
@@ -209,6 +226,8 @@ def call_model(sentence: str, model_slug: str, api_key: str, max_tokens: int = 1
         # The JSON was opened but never closed: the reply ran out of max_tokens mid-object
         # (long nuance notes plus reasoning). Retried once with a bigger budget.
         raise RuntimeError(f"TRUNCATED reply from {model_slug} (finish_reason={finish}): {text[-120:]}")
+    if start == -1 and looks_like_refusal(text):
+        raise Refused(f"REFUSED by {model_slug}: {text[:300]}")
     if start == -1 or end == -1 or end < start:
         raise RuntimeError(f"No JSON object found in response from {model_slug}: {text[:300]}")
     text = text[start:end + 1]
@@ -397,6 +416,9 @@ def generate(seeds, generators, api_key, breaker_threshold=CIRCUIT_BREAKER_CONSE
                     kind = "network" if isinstance(err, NetworkDown) else "rate limited"
                     failures.append({"source_text": sentence, "model": slug, "error": f"{kind} -- {err}"})
                     print(f"[{n}/{total_calls}] {kind.upper()} model={slug} (retry later, not a model failure)")
+                elif isinstance(err, Refused):
+                    failures.append({"source_text": sentence, "model": slug, "error": f"refused -- {err}"})
+                    print(f"[{n}/{total_calls}] REFUSED model={slug} (content policy; not retried)")
                 elif isinstance(err, OutOfCredits):
                     failures.append({"source_text": sentence, "model": slug, "error": f"out of credits -- {err}"})
                     out_of_credits = err

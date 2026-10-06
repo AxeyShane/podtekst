@@ -57,14 +57,30 @@ def load_failures_jsonl(path):
     return pairs
 
 
+def load_done_pairs(path):
+    """(source_text, model) pairs already present in a Stage A output file, so a stopped retry
+    can resume, and --skip-covered can skip seeds that already have candidates."""
+    done = set()
+    if not path or not os.path.exists(path):
+        return done
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if line:
+                row = json.loads(line)
+                done.add((row.get("source_text"), row.get("_generator_model")))
+    return done
+
+
 def load_seed_list_for_model(path, model_slug):
     with open(path, encoding="utf-8") as f:
         return [(line.strip(), model_slug) for line in f if line.strip()]
 
 
 def retry_pairs(pairs, api_key, sleep=0.5, min_balance=sa.MIN_BALANCE_USD, chunk=sa.GUARD_CHUNK,
-                call=None, check_balance=None, routing=None, on_result=None):
-    """Returns (results, still_failing). Checks the balance before every `chunk` pairs and stops
+                call=None, check_balance=None, routing=None, on_result=None, refused=None):
+    """Returns (results, still_failing). Refusals go to `refused` (a list, if given) instead of
+    still_failing, since retrying them is pointless. Checks the balance before every `chunk` pairs and stops
     cleanly under min_balance; unprocessed, rate-limited and 402'd pairs land in still_failing
     for a later round. routing maps slug -> roster entry so retries use the same provider /
     api_model routing as Stage A. call / check_balance are injectable for tests."""
@@ -91,6 +107,10 @@ def retry_pairs(pairs, api_key, sleep=0.5, min_balance=sa.MIN_BALANCE_USD, chunk
             print(f"[{i + 1}/{len(pairs)}] OUT OF CREDITS -- stopping cleanly: {e}")
             rest(i, f"out of credits -- {e}")
             break
+        except sa.Refused as e:
+            (refused if refused is not None else still_failing).append(
+                {"source_text": sentence, "model": model_slug, "error": f"refused -- {e}"})
+            print(f"[{i + 1}/{len(pairs)}] REFUSED model={model_slug} (content policy; not retried)  {sentence[:50]}")
         except sa.RateLimited as e:
             still_failing.append({"source_text": sentence, "model": model_slug, "error": f"rate limited -- {e}"})
             print(f"[{i + 1}/{len(pairs)}] RATE-LIMITED model={model_slug} (retry later)")
@@ -111,6 +131,12 @@ def main():
     ap.add_argument("--sleep", type=float, default=0.5)
     ap.add_argument("--meta", default=None,
                     help="Seeds .meta.jsonl with speaker_gender / addressee_gender, as in stage_a_generate.py")
+    ap.add_argument("--skip-covered", default=None,
+                    help="Main Stage A output of the batch: skip pairs whose seed already has at least one "
+                         "candidate there (those seeds were already reviewed with the models that answered)")
+    ap.add_argument("--fresh", action="store_true",
+                    help="Overwrite --out instead of resuming (by default pairs already in --out are skipped "
+                         "and new rows are appended)")
     ap.add_argument("--min-balance", type=float, default=sa.MIN_BALANCE_USD,
                     help="Stop cleanly when the OpenRouter balance drops under this many USD "
                          f"(checked every {sa.GUARD_CHUNK} pairs); the rest go to .still_failing.jsonl")
@@ -143,6 +169,21 @@ def main():
         print(f"Skipping {len(skipped)} pair(s) whose model is no longer in the active "
               f"roster ({dropped_models}) -- nothing to retry there.")
 
+    if args.skip_covered:
+        covered = {src for src, _ in load_done_pairs(args.skip_covered)}
+        before = len(pairs)
+        pairs = [(s, m) for s, m in pairs if s not in covered]
+        print(f"Skipping {before - len(pairs)} pair(s) whose seed already has candidates in {args.skip_covered}.")
+
+    if not args.fresh and os.path.exists(args.out):
+        done = load_done_pairs(args.out)
+        before = len(pairs)
+        refused_path = (args.out[:-len(".jsonl")] if args.out.endswith(".jsonl") else args.out) + ".refused.jsonl"
+        if os.path.exists(refused_path):
+            done |= set(load_failures_jsonl(refused_path))
+        pairs = [(s, m) for s, m in pairs if (s, m) not in done]
+        print(f"Resuming: {before - len(pairs)} pair(s) already in {args.out} (or refused), appending the rest.")
+
     if not pairs:
         print("Nothing left to retry.")
         return
@@ -150,12 +191,21 @@ def main():
     print(f"Retrying {len(pairs)} (seed, model) pair(s)...")
     routing = {g["slug"]: g for g in config["stage_a_generators"]}
     # Rows are written as they arrive, so an interrupted retry keeps what it paid for.
-    with open(args.out, "w", encoding="utf-8") as f:
+    refused = []
+    with open(args.out, "w" if args.fresh else "a", encoding="utf-8") as f:
         def write_row(row):
             f.write(json.dumps(row, ensure_ascii=False) + "\n")
             f.flush()
         results, still_failing = retry_pairs(pairs, api_key, sleep=args.sleep, min_balance=args.min_balance,
-                                             routing=routing, on_result=write_row)
+                                             routing=routing, on_result=write_row, refused=refused)
+
+    base = args.out[:-len(".jsonl")] if args.out.endswith(".jsonl") else args.out
+    if refused:
+        with open(base + ".refused.jsonl", "a", encoding="utf-8") as f:
+            for r in refused:
+                f.write(json.dumps(r, ensure_ascii=False) + "\n")
+        print(f"{len(refused)} pair(s) refused by the model (content policy) -- recorded in "
+              f"{base}.refused.jsonl, not retried.")
 
     if still_failing:
         still_path = (
