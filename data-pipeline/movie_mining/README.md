@@ -9,6 +9,7 @@ There are two tracks:
 | --- | --- | --- | --- |
 | **Text** | OPUS OpenSubtitles RU-EN alignments | Pairs where the human subtitle departs from a literal MT: candidate idiom, register or sarcasm handling | Stage A seeds, with the human subtitle kept as reference |
 | **Audio** | Your own film files + RU/EN subtitles | Clean single-speaker dialogue clips with subtitle text | ASR domain data and emotion2vec Russian validation (Phase 7) |
+| **Paired subtitles** | A video whose creator published both RU and EN subtitles | Aligned RU-EN pairs with a LaBSE score | Stage A seeds, with the human English kept as reference |
 
 **Rights:** mined lines, audio and clips hold verbatim film dialogue. They stay
 in the media root (default `raw-media/`, or `D:\podtekst-mm\media`), which is
@@ -156,6 +157,35 @@ Each step also runs on its own:
 `python -m movie_mining.cut_clips <media root>/work/<film>` and
 `python -m movie_mining.transcribe <media root>/work/<film>`.
 
+## Paired-subtitle track
+
+For interviews and podcasts where the creator uploaded both Russian and English
+subtitles (for example `yt-dlp --write-subs --sub-langs "ru,en" --convert-subs srt`).
+
+```powershell
+python -m movie_mining.align_subs <media root>\<video>\<video>.ru.srt <media root>\<video>\<video>.en.srt
+```
+
+The English track is often a condensed human translation with its own cue
+timings, so cues don't map one to one. `align_subs` cleans both tracks
+(song lyrics between ♪ marks, sound tags like `(хлопок)`, dialogue dashes,
+stray timecode lines) and then runs a banded monotonic alignment, the same idea
+as Bertalign. It groups 1–3 English cues with 1–5 Russian cues, scores each
+group with LaBSE plus a small time-overlap bonus, and only considers groups that
+overlap in time. The output is `aligned_pairs.tsv` next to the subtitles, with
+the pair kind (`1:2` and so on), cue ids, start time, score and both texts.
+
+Pairs still need a human pass before they become seeds:
+
+- keep lines from one speaker that make sense on their own (a single cue often
+  holds a question and its answer);
+- keep the English as the reference only where it really translates the
+  Russian, since a condensed English line is a summary, not a translation;
+- drop lyrics, cut-off fragments and lines whose meaning depends on the scene.
+
+The TSV and the seeds hold verbatim dialogue, so they stay in the media root
+or in git-ignored `seeds_*_subs.txt` files.
+
 ## Tests
 
 ```bash
@@ -163,6 +193,7 @@ python -m unittest discover -s movie_mining/tests -t .
 ```
 
 The tests need no models. They cover the text filters, divergence and
-ranking logic (with fake models), and a synthetic 5.1 film run through the
+ranking logic (with fake models), the paired-subtitle cleaning and alignment
+(with a fake similarity), and a synthetic 5.1 film run through the
 center-channel extraction, overlap removal, noise filter and subtitle
 alignment.

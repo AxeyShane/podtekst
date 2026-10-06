@@ -39,17 +39,21 @@ confident.
 
 ## Progress
 
-*Last updated 2026-09-26.*
+*Last updated 2026-10-06.*
 
 | Phase | Status |
 | --- | --- |
 | Feasibility spike (base Gemma, prompt only) | ✅ Done: nuance detection works out of the box |
-| Training data pipeline (synthetic + verified) | 🔄 In progress: **2,185 verified rows** (batches 1–6a) toward the 3,000-row Phase 1 target; batch 6b in progress |
+| Training data pipeline (synthetic + verified) | ✅ Phase 1 target reached: **3,095 verified rows** (3,016 unique sentences) across batches 1–6b and real subtitled dialogue; more real dialogue is in progress |
 | Real-dialogue mining (film audio + subtitles) | 🔄 In progress: see below |
 | LoRA fine-tune (Gemma 2B → 4B) | ⏭️ Next |
 | On-device conversion + benchmarking | 📋 Planned |
 | Keyboard (FlorisBoard fork) + nuance UI | 📋 Planned |
 | Voice input (v1.1) | 📋 Planned |
+
+Verified rows by label: none 44%, sarcasm 20%, formality shift (ты/вы) 19%, idiom 16%,
+emotional subtext 1%. Emotional subtext is the thin category: most emotions survive
+translation, so only culture-specific ones (обида, тоска, умиление) count.
 
 **Real-dialogue mining so far**
 
@@ -63,6 +67,10 @@ confident.
   human subtitler departed from a literal translation. Lines are limited to
   Russian-made films and filtered for broken text, and ты/вы cases are kept in
   their own capped bucket.
+- **Creator-subtitled videos:** interviews and podcasts whose creators published
+  both Russian and English subtitles. The two tracks are aligned with LaBSE plus
+  timing, and the human English is kept as a reference translation. Where only
+  one side is subtitled, the other side is transcribed with whisper.cpp first.
 - Mined lines and clips are **candidates, not labels**. They seed the same
   verification pipeline as the synthetic data, and none of the media or text
   is committed to this repo.

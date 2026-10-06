@@ -47,3 +47,4 @@ data-pipeline/seeds_batch6b.txt
 # Failure reports list seed text (can be film/subtitle dialogue).
 data-pipeline/*_failures*.csv
 *.wav
+data-pipeline/*_relabels.json
