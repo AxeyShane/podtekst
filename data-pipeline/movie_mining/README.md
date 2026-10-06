@@ -110,6 +110,12 @@ either way, and divergent lines just rank first. `--max-per-emotion` (default 40
 caps each emotion word so обида can't crowd out the rest, and `by_emotion` in the
 stats file shows the spread.
 
+`--only-emotions obida,toska,dushevno` keeps only those pattern keys, and
+`--exclude <earlier subs_candidates_*.jsonl …>` skips lines an earlier run already mined.
+The Russian-origin pool (`--origin ru`) is small: emo1 and a looser-alignment emo2 found
+the same 465 lines. A follow-up run widens it with `--origin any` (Russian subtitles of
+foreign films too), which raises yield at the cost of some translated Russian.
+
 ## Audio track
 
 ```powershell

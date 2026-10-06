@@ -95,6 +95,30 @@ def iter_pairs(zip_path: Path, max_lines: int | None = None) -> Iterator[tuple[s
                 f.close()
 
 
+def emotion_keep(only: set[str] | None = None, exclude_keys: set[str] | None = None):
+    """Predicate for --emotions runs: the line has an emotion word (one of `only`, if given)
+    and its normalized form isn't in exclude_keys (lines an earlier run already mined)."""
+    exclude_keys = exclude_keys or set()
+
+    def keep(ru: str) -> bool:
+        hits = emotion_hits(ru)
+        if only is not None:
+            hits = [h for h in hits if h in only]
+        return bool(hits) and normalize_key(ru) not in exclude_keys
+    return keep
+
+
+def load_exclude_keys(paths) -> set[str]:
+    """Normalized RU lines from earlier candidate files (subs_candidates_<name>.jsonl)."""
+    keys = set()
+    for p in paths or []:
+        with open(p, encoding="utf-8") as f:
+            for line in f:
+                if line.strip():
+                    keys.add(normalize_key(json.loads(line)["ru"]))
+    return keys
+
+
 def collect_pool(pairs, pool_size: int, rng: random.Random, min_words: int, max_words: int,
                  films: set[str] | None = None, keep=None):
     """Filter + dedupe, then reservoir-sample so the pool spans the whole corpus
@@ -385,6 +409,10 @@ def main() -> None:
                          "no divergence requirement (see module docstring)")
     ap.add_argument("--max-per-emotion", type=int, default=40,
                     help="With --emotions: cap per emotion word in the selection")
+    ap.add_argument("--only-emotions", default=None,
+                    help="With --emotions: comma list of EMOTION_PATTERNS keys to keep, e.g. obida,toska,dushevno")
+    ap.add_argument("--exclude", type=Path, nargs="*", default=None,
+                    help="Earlier subs_candidates_*.jsonl files whose RU lines are skipped")
     args = ap.parse_args()
     if args.emotions:
         args.directions = "ru-en"
@@ -411,7 +439,9 @@ def main() -> None:
     t = time.time()
     pool, stats = collect_pool(iter_pairs(args.zip, args.max_lines), args.pool_size,
                                random.Random(args.seed), args.min_words, args.max_words, films=films,
-                               keep=(lambda ru: bool(emotion_hits(ru))) if args.emotions else None)
+                               keep=emotion_keep(
+                                   {e.strip() for e in args.only_emotions.split(",")} if args.only_emotions else None,
+                                   load_exclude_keys(args.exclude)) if args.emotions else None)
     stats.update(origin_stats)
     print(f"Read {stats['read']:,} lines, {stats['passed_filters']:,} passed filters, "
           f"pool {len(pool):,} ({time.time() - t:.0f}s)")

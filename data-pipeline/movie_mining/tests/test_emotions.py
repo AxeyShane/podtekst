@@ -58,6 +58,24 @@ class EmotionModeTest(unittest.TestCase):
         out = ms.select(ranked, 10, 15, max_per_emotion=2)
         self.assertEqual([c["emotions"][0] for c in out], ["obida", "obida", "toska"])
 
+class EmotionKeepTest(unittest.TestCase):
+    def test_only_and_exclude(self):
+        import json
+        import os
+        import tempfile
+        from movie_mining import mine_subtitles as ms
+        keep = ms.emotion_keep({"obida", "toska"})
+        self.assertTrue(keep("Ты его обидела?"))
+        self.assertFalse(keep("Мне очень стыдно."))
+        with tempfile.TemporaryDirectory() as d:
+            p = os.path.join(d, "c.jsonl")
+            with open(p, "w", encoding="utf-8") as f:
+                f.write(json.dumps({"ru": "Ты его обидела?"}, ensure_ascii=False) + "\n")
+            keep2 = ms.emotion_keep({"obida"}, ms.load_exclude_keys([p]))
+        self.assertFalse(keep2("Ты его обидела?"))
+        self.assertTrue(keep2("Он меня обидел."))
+        self.assertTrue(ms.emotion_keep()("Мне очень стыдно."))
+
 
 if __name__ == "__main__":
     unittest.main()
