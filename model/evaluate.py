@@ -12,6 +12,7 @@ import argparse
 import json
 from pathlib import Path
 
+from podtekst_sft.crude import crude_report
 from podtekst_sft.metrics import summarize
 from podtekst_sft.prompt import build_messages, parse_reply
 
@@ -30,6 +31,8 @@ def main():
     ap.add_argument("--batch", type=int, default=8)
     ap.add_argument("--max-new-tokens", type=int, default=256)
     ap.add_argument("--qlora", action="store_true", help="Load the base in 4-bit")
+    ap.add_argument("--crude-probe", type=Path, default=HERE / "probes" / "crude_probe.jsonl",
+                    help="Held-out crude messages scored only in the crude slice ('' to skip)")
     args = ap.parse_args()
     if bool(args.base) == bool(args.endpoint):
         raise SystemExit("Pass exactly one of --base or --endpoint.")
@@ -38,13 +41,21 @@ def main():
     if args.limit:
         items = items[:args.limit]
     rows = [it["row"] for it in items]
+    probe = load_probe(args.crude_probe)
 
+    todo = rows + probe
     if args.endpoint:
         replies = [chat_endpoint(args.endpoint, build_messages(r, with_answer=False), args.max_new_tokens)
-                   for r in progress(rows)]
+                   for r in progress(todo)]
     else:
-        replies = generate_local(args, rows)
-    finish(args, rows, replies)
+        replies = generate_local(args, todo)
+    finish(args, rows, replies[:len(rows)], probe, replies[len(rows):])
+
+
+def load_probe(path) -> list[dict]:
+    if not path or not Path(path).is_file():
+        return []
+    return [json.loads(l) for l in open(path, encoding="utf-8") if l.strip()]
 
 
 def progress(rows):
@@ -73,11 +84,13 @@ def generate_local(args, rows):
     tok.padding_side = "left"
     if tok.pad_token_id is None:
         tok.pad_token = tok.eos_token
-    kw = {"torch_dtype": torch.bfloat16}
+    from train_lora import pick_dtype
+    dtype = pick_dtype()
+    kw = {"torch_dtype": dtype}
     if args.qlora:
         from transformers import BitsAndBytesConfig
         kw["quantization_config"] = BitsAndBytesConfig(load_in_4bit=True, bnb_4bit_quant_type="nf4",
-                                                       bnb_4bit_compute_dtype=torch.bfloat16)
+                                                       bnb_4bit_compute_dtype=dtype)
     model = AutoModelForCausalLM.from_pretrained(args.base, device_map="auto", **kw)
     if args.adapter:
         from peft import PeftModel
@@ -97,9 +110,16 @@ def generate_local(args, rows):
     return replies
 
 
-def finish(args, rows, replies):
+def finish(args, rows, replies, probe=(), probe_replies=()):
+    """Main metrics over the test rows only; the crude slice adds the probe rows."""
+    probe, probe_replies = list(probe), list(probe_replies)
     preds = [parse_reply(t) for t in replies]
+    probe_preds = [parse_reply(t) for t in probe_replies]
     report = summarize(rows, preds) | {"name": args.name, "base": args.base or args.endpoint, "adapter": args.adapter}
+    report["crude"] = crude_report(rows + probe, replies + probe_replies, preds + probe_preds,
+                                   always=set(range(len(rows), len(rows) + len(probe))))
+    if report["crude"]:
+        report["crude"]["probe_rows"] = len(probe)
     out_dir = HERE / "out"
     out_dir.mkdir(exist_ok=True)
     with open(out_dir / f"eval_{args.name}.json", "w", encoding="utf-8") as f:
@@ -107,12 +127,18 @@ def finish(args, rows, replies):
     with open(out_dir / f"eval_{args.name}_preds.jsonl", "w", encoding="utf-8", newline="\n") as f:
         for r, t, p in zip(rows, replies, preds):
             f.write(json.dumps({"row": r, "reply": t, "parsed": p}, ensure_ascii=False) + "\n")
+        for r, t, p in zip(probe, probe_replies, probe_preds):
+            f.write(json.dumps({"row": r, "reply": t, "parsed": p, "crude_probe": True}, ensure_ascii=False) + "\n")
     d, c = report["detection"], report["category"]
     print(f"\n{args.name}: json_valid {report['json_valid_rate']}  chrF {report['chrf']}  "
           f"category acc {c['accuracy']}")
     print(f"  subtext precision {d['precision']}  recall {d['recall']}  false-positive rate {d['false_positive_rate']}")
     for cat in ("formality_shift", "idiom", "sarcasm", "emotional_subtext"):
         print(f"  {cat:18} F1 {c[cat]['f1']}  (n={c[cat]['support']})")
+    cr = report["crude"]
+    if cr:
+        print(f"  crude slice (n={cr['n']}, {cr['probe_rows']} probe): refusals {cr['refusal_rate']}  profanity kept {cr['profanity_kept_rate']}  "
+              f"masked {cr['masked_rate']}  json_valid {cr['json_valid_rate']}")
     print(f"-> out/eval_{args.name}.json")
 
 

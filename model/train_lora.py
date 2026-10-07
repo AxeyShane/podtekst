@@ -50,6 +50,15 @@ def collate(batch: list[dict], pad_id: int) -> dict:
     return {"input_ids": torch.tensor(ids), "labels": torch.tensor(lab), "attention_mask": torch.tensor(att)}
 
 
+def pick_dtype():
+    """bf16 on Ampere or newer (RTX 30/40, A100, L4); fp16 on older cards such as Kaggle's T4 and P100,
+    where bf16 is missing or only emulated."""
+    import torch
+    if torch.cuda.is_available() and torch.cuda.get_device_capability(0)[0] >= 8:
+        return torch.bfloat16
+    return torch.float16
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--base", required=True, help="Local path or HF id of the base model")
@@ -89,13 +98,16 @@ def main():
     print(f"{len(data)} training examples ({skipped} skipped as longer than {args.max_len} tokens); "
           f"median {lens[len(lens) // 2]} tokens, max {lens[-1]}")
 
-    kw = {"torch_dtype": torch.bfloat16}
+    dtype = pick_dtype()
+    print(f"compute dtype {dtype}")
+    kw = {"torch_dtype": dtype}
     if args.qlora:
         from transformers import BitsAndBytesConfig
         kw["quantization_config"] = BitsAndBytesConfig(
-            load_in_4bit=True, bnb_4bit_quant_type="nf4", bnb_4bit_compute_dtype=torch.bfloat16,
+            load_in_4bit=True, bnb_4bit_quant_type="nf4", bnb_4bit_compute_dtype=dtype,
             bnb_4bit_use_double_quant=True)
-    model = AutoModelForCausalLM.from_pretrained(args.base, device_map="auto", **kw)
+    # One GPU: a ~2B model fits, and splitting it across Kaggle's 2x T4 only adds transfer time.
+    model = AutoModelForCausalLM.from_pretrained(args.base, device_map={"": 0}, **kw)
     if args.qlora:
         model = prepare_model_for_kbit_training(model, use_gradient_checkpointing=True)
     else:
@@ -105,6 +117,11 @@ def main():
     model = get_peft_model(model, LoraConfig(
         r=args.rank, lora_alpha=args.alpha, lora_dropout=args.dropout, bias="none", task_type="CAUSAL_LM",
         target_modules=["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]))
+    if dtype == torch.float16:
+        # fp16 AMP cannot unscale fp16 gradients, so the LoRA weights themselves train in fp32.
+        for p_ in model.parameters():
+            if p_.requires_grad:
+                p_.data = p_.data.float()
     model.print_trainable_parameters()
 
     steps_per_epoch = math.ceil(len(data) / (args.batch * args.grad_accum))
@@ -112,7 +129,7 @@ def main():
         output_dir=args.out, per_device_train_batch_size=args.batch, gradient_accumulation_steps=args.grad_accum,
         num_train_epochs=args.epochs, max_steps=args.max_steps, learning_rate=args.lr,
         lr_scheduler_type="cosine", warmup_ratio=0.05, logging_steps=10, save_strategy="epoch",
-        save_total_limit=2, bf16=True, report_to=[], seed=args.seed, group_by_length=True,
+        save_total_limit=2, bf16=dtype == torch.bfloat16, fp16=dtype == torch.float16, report_to=[], seed=args.seed, group_by_length=True,
         optim="paged_adamw_8bit" if args.qlora else "adamw_torch", remove_unused_columns=False)
     print(f"~{steps_per_epoch} optimizer steps per epoch")
     trainer = Trainer(model=model, args=targs, train_dataset=data,

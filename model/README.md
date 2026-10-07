@@ -40,6 +40,32 @@ per-category F1 and translation chrF, and writes every reply to `out/eval_<name>
 for review. `data/` and `out/` are git-ignored (they hold dataset rows, some derived from
 film subtitles, and large checkpoints).
 
+## On Kaggle (no local download)
+
+The base model never has to touch your machine: a Kaggle notebook pulls it from Hugging Face at
+datacenter speed. Only the two SFT files (~4 MB) go up, as a **private** Kaggle dataset
+(they hold film-subtitle sentences, so never make it public).
+
+1. Kaggle → Datasets → New → upload `model/data/sft_train.jsonl` and `sft_test.jsonl`, visibility
+   Private, name `podtekst-sft`.
+2. New notebook → Settings: Accelerator **GPU T4 x2** (or P100), Internet **on** (needs a verified
+   phone number). Add the `podtekst-sft` dataset as input.
+3. Cells:
+
+```
+!git clone --depth 1 https://github.com/AxeyShane/podtekst
+%cd podtekst/model
+!pip install -q -r requirements-train.txt
+!mkdir -p data && cp /kaggle/input/podtekst-sft/*.jsonl data/
+!python -c "from huggingface_hub import snapshot_download; snapshot_download('Vikhrmodels/QVikhr-3-1.7B-Instruction-noreasoning', local_dir='/kaggle/working/base')"
+!python evaluate.py --base /kaggle/working/base --name baseline --limit 40
+!python train_lora.py --base /kaggle/working/base --out out/qvikhr-lora-v1 --max-steps 100
+```
+
+T4 and P100 have no real bf16, so the scripts switch to fp16 automatically (LoRA weights stay
+fp32). Download `out/` from the notebook's Output panel when it finishes (the adapter is tens of
+MB). Kaggle gives about 30 GPU hours a week and 12 h per session.
+
 ## To the phone
 
 The merged checkpoint is converted to `.litertlm` with LiteRT Torch (`litert-torch`) and
