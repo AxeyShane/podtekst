@@ -69,8 +69,15 @@ MB). Kaggle gives about 30 GPU hours a week and 12 h per session.
 
 ## To the phone
 
-The merged checkpoint is converted to `.litertlm` with LiteRT Torch (`litert-torch`) and
-quantized to INT4 with AI Edge Quantizer — the same path `litert-community/Qwen3-1.7B` used
-(932 MB INT4 build). Check it on the PC with `pip install litert-lm` and
-`litert-lm run <file>.litertlm --prompt=...`, then load it in AI Edge Gallery on the phone.
-The conversion script is added once the merge step has produced a checkpoint.
+`convert_litertlm.py` merges the adapter into the base and exports a `.litertlm` with LiteRT Torch
+(`pip install litert-torch`). It needs Linux, so run it in the same Kaggle notebook after training:
+
+```
+!pip install -q litert-torch
+!python convert_litertlm.py --base /tmp/base --adapter /kaggle/working/qvikhr-lora-v1 --out /kaggle/working/litert
+```
+
+The default is INT8 weights (`dynamic_wi8_afp32`, ~1.8 GB), the safest first test. `--quant
+dynamic_wi4b32_afp32` gives INT4 (~1 GB, as in the litert-community builds); compare its answers
+with the INT8 file before keeping it. Load the result in AI Edge Gallery on the phone, or check it
+on a PC with `pip install litert-lm` and `litert-lm run <file>.litertlm --prompt=...`.
