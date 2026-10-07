@@ -61,7 +61,20 @@ class FakeTok:
         return [ord(ch) for ch in s]
 
 
+class DictTok(FakeTok):
+    """transformers 5.x style: apply_chat_template(tokenize=True) returns a dict."""
+    def apply_chat_template(self, msgs, add_generation_prompt=False, tokenize=True):
+        ids = super().apply_chat_template(msgs, add_generation_prompt, tokenize)
+        return {"input_ids": ids, "attention_mask": [1] * len(ids)}
+
+
 class TokenizeTest(unittest.TestCase):
+    def test_dict_return_from_new_transformers(self):
+        ex = tokenize_example(DictTok(), build_messages(ROW), 2000)
+        self.assertIsNotNone(ex)
+        kept = "".join(chr(t) for t, l in zip(ex["input_ids"], ex["labels"]) if l != -100)
+        self.assertEqual(kept, target_json(ROW))
+
     def test_masks_prompt(self):
         ex = tokenize_example(FakeTok(), build_messages(ROW), 2000)
         answer = target_json(ROW)

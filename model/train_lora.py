@@ -25,12 +25,24 @@ def common_prefix_len(a: list, b: list) -> int:
     return n
 
 
+def as_ids(out) -> list:
+    """apply_chat_template(tokenize=True) returns a plain id list in transformers 4.x but a
+    BatchEncoding dict in 5.x; normalise both to a flat list of ints."""
+    if hasattr(out, "keys") and "input_ids" in out:
+        out = out["input_ids"]
+    if hasattr(out, "tolist"):
+        out = out.tolist()
+    if out and isinstance(out[0], (list, tuple)):
+        out = out[0]
+    return list(out)
+
+
 def tokenize_example(tok, messages: list[dict], max_len: int) -> dict | None:
     """input_ids + labels with everything before the assistant answer masked to -100.
     Returns None when the example doesn't fit max_len (it is skipped, never truncated --
     a cut-off JSON target would teach the model to stop mid-object)."""
-    prompt_ids = tok.apply_chat_template(messages[:-1], add_generation_prompt=True, tokenize=True)
-    full_ids = tok.apply_chat_template(messages, tokenize=True)
+    prompt_ids = as_ids(tok.apply_chat_template(messages[:-1], add_generation_prompt=True, tokenize=True))
+    full_ids = as_ids(tok.apply_chat_template(messages, tokenize=True))
     # Usually the prompt is an exact prefix. Some templates (Qwen3's empty <think></think> block)
     # render the generation prompt slightly differently, so mask up to the common prefix: the
     # loss then starts at the first token the model actually has to produce.
@@ -94,6 +106,8 @@ def main():
             skipped += 1
         else:
             data.append(ex)
+    if not data:
+        raise SystemExit(f"No usable training examples out of {len(rows)} -- check the chat template output.")
     lens = sorted(len(d["input_ids"]) for d in data)
     print(f"{len(data)} training examples ({skipped} skipped as longer than {args.max_len} tokens); "
           f"median {lens[len(lens) // 2]} tokens, max {lens[-1]}")
