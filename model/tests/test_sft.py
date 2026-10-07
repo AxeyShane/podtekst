@@ -83,5 +83,27 @@ class PrepareTest(unittest.TestCase):
         self.assertEqual(len(out[0]["messages"]), 3)
 
 
+
+class EndpointTest(unittest.TestCase):
+    def test_chat_endpoint_posts_greedy_request(self):
+        from evaluate import chat_endpoint
+        seen = {}
+
+        class Resp:
+            def raise_for_status(self):
+                pass
+
+            def json(self):
+                return {"choices": [{"message": {"content": '{"translation": "Hi"}'}}]}
+
+        def post(url, json, timeout):
+            seen.update(url=url, body=json)
+            return Resp()
+        out = chat_endpoint("http://127.0.0.1:8080/v1/", build_messages(ROW, with_answer=False), 64, post=post)
+        self.assertEqual(out, '{"translation": "Hi"}')
+        self.assertEqual(seen["url"], "http://127.0.0.1:8080/v1/chat/completions")
+        self.assertEqual(seen["body"]["temperature"], 0)
+
+
 if __name__ == "__main__":
     unittest.main()
