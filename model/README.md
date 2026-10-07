@@ -56,7 +56,8 @@ datacenter speed. Only the two SFT files (~4 MB) go up, as a **private** Kaggle 
 !git clone --depth 1 https://github.com/AxeyShane/podtekst
 %cd podtekst/model
 !pip install -q -r requirements-train.txt
-!mkdir -p data && cp /kaggle/input/podtekst-sft/*.jsonl data/
+!pip uninstall -y -q torchao   # Kaggle's old torchao (0.10) makes peft refuse to load
+!mkdir -p data && find /kaggle/input -name "sft_*.jsonl" -exec cp {} data/ \;
 !python -c "from huggingface_hub import snapshot_download; snapshot_download('Vikhrmodels/QVikhr-3-1.7B-Instruction-noreasoning', local_dir='/kaggle/working/base')"
 !python evaluate.py --base /kaggle/working/base --name baseline --limit 40
 !python train_lora.py --base /kaggle/working/base --out out/qvikhr-lora-v1 --max-steps 100
