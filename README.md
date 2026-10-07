@@ -10,9 +10,12 @@ what a literal translation would miss: tone, formality, sarcasm, idiom,
 emotional subtext. Automatically, without the user asking.
 
 [![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
-![Status: building the dataset](https://img.shields.io/badge/status-building%20the%20dataset-orange)
+![Status: fine-tuning](https://img.shields.io/badge/status-fine--tuning-orange)
 ![Runs fully on-device](https://img.shields.io/badge/runtime-fully%20on--device-2ea44f)
 ![Russian ↔ English](https://img.shields.io/badge/languages-RU%20%E2%86%94%20EN-informational)
+[![GitHub stars](https://img.shields.io/github/stars/AxeyShane/podtekst?style=social)](https://github.com/AxeyShane/podtekst/stargazers)
+
+⭐ **If this project interests you, a star helps others find it.**
 
 </div>
 
@@ -135,6 +138,13 @@ See [`NOTICE`](NOTICE) for full attribution.
 Translation tools get the words right and the meaning wrong. Podtekst exists
 to close that gap for one language pair, done well, rather than many language
 pairs done shallowly.
+
+## Support the project
+
+If you'd like to see nuance-aware, fully offline translation exist, please
+⭐ [star the repository](https://github.com/AxeyShane/podtekst). It's the
+simplest way to help, and it shows the project is worth continuing. Issues
+and ideas are welcome too.
 
 ## License
 
