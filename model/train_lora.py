@@ -62,6 +62,18 @@ def collate(batch: list[dict], pad_id: int) -> dict:
     return {"input_ids": torch.tensor(ids), "labels": torch.tensor(lab), "attention_mask": torch.tensor(att)}
 
 
+def supported_kwargs(cls, kw: dict) -> dict:
+    """Drop arguments this transformers version no longer accepts (5.x removed several), with a note."""
+    import inspect
+    params = inspect.signature(cls.__init__).parameters
+    if any(p.kind == p.VAR_KEYWORD for p in params.values()):
+        return kw
+    dropped = sorted(k for k in kw if k not in params)
+    if dropped:
+        print(f"note: this transformers version ignores {', '.join(dropped)}")
+    return {k: v for k, v in kw.items() if k in params}
+
+
 def pick_dtype():
     """bf16 on Ampere or newer (RTX 30/40, A100, L4); fp16 on older cards such as Kaggle's T4 and P100,
     where bf16 is missing or only emulated."""
@@ -139,12 +151,14 @@ def main():
     model.print_trainable_parameters()
 
     steps_per_epoch = math.ceil(len(data) / (args.batch * args.grad_accum))
-    targs = TrainingArguments(
+    total_steps = args.max_steps if args.max_steps > 0 else math.ceil(steps_per_epoch * args.epochs)
+    targs = TrainingArguments(**supported_kwargs(TrainingArguments, dict(
         output_dir=args.out, per_device_train_batch_size=args.batch, gradient_accumulation_steps=args.grad_accum,
         num_train_epochs=args.epochs, max_steps=args.max_steps, learning_rate=args.lr,
-        lr_scheduler_type="cosine", warmup_ratio=0.05, logging_steps=10, save_strategy="epoch",
-        save_total_limit=2, bf16=dtype == torch.bfloat16, fp16=dtype == torch.float16, report_to=[], seed=args.seed, group_by_length=True,
-        optim="paged_adamw_8bit" if args.qlora else "adamw_torch", remove_unused_columns=False)
+        lr_scheduler_type="cosine", warmup_steps=max(1, round(0.05 * total_steps)), logging_steps=10,
+        save_strategy="epoch", save_total_limit=2, bf16=dtype == torch.bfloat16, fp16=dtype == torch.float16,
+        report_to=[], seed=args.seed, group_by_length=True,
+        optim="paged_adamw_8bit" if args.qlora else "adamw_torch", remove_unused_columns=False)))
     print(f"~{steps_per_epoch} optimizer steps per epoch")
     trainer = Trainer(model=model, args=targs, train_dataset=data,
                       data_collator=lambda b: collate(b, tok.pad_token_id))
