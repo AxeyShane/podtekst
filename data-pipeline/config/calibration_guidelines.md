@@ -15,6 +15,27 @@ rule came from).
 
 ## Formality shift (ты/вы, RU<->EN register)
 
+**Current rule (2026-10-08): flag only unusual ты/вы.** Plain ты between friends, family or
+partners is the default register; a note on it tells the reader nothing, so it is `none`.
+Flag `formality_shift` only when the choice itself says something:
+
+- Polite вы to one person (a stranger, colleague, client, older relative): «Вы не подскажете…»,
+  «Извините, что отвлекаю вас», «Бабушка, вы чай будете?».
+- A first name or diminutive with вы («Оксаночка, вы…», «Серёжа, какой вы…»): the mix is the nuance.
+- ты with a name-patronymic («Ты чего, Иван Михалыч?»), or ты to a stranger («Эй, ты обронил
+  кошелёк!»): familiarity where вы is expected.
+- A switch or explicit talk about the form («Давай на «ты»?», «Почему вы мне тыкаете?»,
+  «С этого дня будем на «вы», раз ты так.»).
+
+Not flagged (`none`, unless another category applies): plain ты statements, questions and
+imperatives, verb-only ты forms; likely-plural вы («Ребята, вы…», «Уважаемые коллеги…»); title,
+name-patronymic or «Уважаемый клиент» address with вы (the address already shows the register);
+English-source sentences (the translation picks ты or вы without a note). Rules 1, 2, 4, 6, 13, 14
+and the «Извините/Простите» exception in rule 12 below are superseded by this; rules 3, 5 and 18
+still hold. Applied to all Stage B files on 2026-10-08 (rows carry `_relabel_2026_10_08`).
+
+Earlier rules, kept for history:
+
 1. RU->EN ты/вы: flag `formality_shift` only when there's a direct address
    pronoun (ты/вы/тебя/вас) or an informal/formal imperative verb form carrying
    real social stakes. Don't flag when the register already carries through

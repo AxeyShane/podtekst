@@ -9,6 +9,7 @@ venv/
 
 # Generated data (large, regenerable — don't commit)
 data-pipeline/*.jsonl
+data-pipeline/backup_*/
 !data-pipeline/seeds_example.txt
 
 # Model artifacts (large binaries — don't commit to git)

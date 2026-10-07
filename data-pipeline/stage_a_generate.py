@@ -130,8 +130,9 @@ Rules:
   flatten something important. Don't force a note onto plain, literal sentences.
 - Cover the full range: many examples should have has_subtext=false. A dataset
   that always finds subtext teaches the model to over-annotate.
-- For formality_shift, focus on ty/vy (informal/formal "you") and how that would
-  be lost or misrepresented in English, or how English lacks a marker Russian has.
+- For formality_shift, flag only an unusual ty/vy choice: polite vy to one person,
+  a first name with vy, ty to a stranger or with a name-patronymic, or a switch
+  between them. Plain ty between friends or family is normal: category "none".
 - Keep nuance_note under 20 words.
 - Russian marks gender in past-tense verbs, short adjectives and some nouns. If a
   context line gives the speaker's or addressee's gender, follow it. If it doesn't,
