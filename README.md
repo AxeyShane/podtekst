@@ -39,21 +39,22 @@ confident.
 
 ## Progress
 
-*Last updated 2026-10-06.*
+*Last updated 2026-10-07.*
 
 | Phase | Status |
 | --- | --- |
 | Feasibility spike (base Gemma, prompt only) | ✅ Done: nuance detection works out of the box |
-| Training data pipeline (synthetic + verified) | ✅ Phase 1 target reached: **3,095 verified rows** (3,016 unique sentences) across batches 1–6b and real subtitled dialogue; more real dialogue is in progress |
+| Training data pipeline (synthetic + verified) | ✅ Phase 1 target reached: **3,815 verified rows** (3,802 unique sentences), split into 3,421 train / 381 test with near-duplicates kept on one side |
 | Real-dialogue mining (film audio + subtitles) | 🔄 In progress: see below |
-| LoRA fine-tune (Gemma 2B → 4B) | ⏭️ Next |
+| LoRA fine-tune | 🔄 Starting: training and eval scripts in [`model/`](model/); first candidate QVikhr-3-1.7B (a Russian-tuned Qwen3), compared with Gemma 4 E2B/E4B on the test set |
 | On-device conversion + benchmarking | 📋 Planned |
 | Keyboard (FlorisBoard fork) + nuance UI | 📋 Planned |
 | Voice input (v1.1) | 📋 Planned |
 
-Verified rows by label: none 44%, sarcasm 20%, formality shift (ты/вы) 19%, idiom 16%,
-emotional subtext 1%. Emotional subtext is the thin category: most emotions survive
-translation, so only culture-specific ones (обида, тоска, умиление) count.
+Verified rows by label: none 44%, formality shift (ты/вы) 20%, sarcasm 16%, idiom 15%,
+emotional subtext 5%. Emotional subtext is the hardest category to collect: most emotions
+survive translation, so only culture-specific ones count (обида, тоска, душевный,
+умиление). A dedicated emotion-word mining pass over the subtitles raised it from 1% to 5%.
 
 **Real-dialogue mining so far**
 
@@ -66,7 +67,8 @@ translation, so only culture-specific ones (обида, тоска, умилен
 - **Subtitles:** the OPUS OpenSubtitles RU-EN corpus is mined for lines where a
   human subtitler departed from a literal translation. Lines are limited to
   Russian-made films and filtered for broken text, and ты/вы cases are kept in
-  their own capped bucket.
+  their own capped bucket. An emotion-word mode collects lines with culture-specific
+  emotion words (обида, тоска, душевный, …) for the emotional-subtext category.
 - **Creator-subtitled videos:** interviews and podcasts whose creators published
   both Russian and English subtitles. The two tracks are aligned with LaBSE plus
   timing, and the human English is kept as a reference translation. Where only
@@ -84,12 +86,13 @@ flowchart LR
     C --> V[Contested cases<br/>adjudicated and calibrated by hand]
     V --> D[(Verified dataset)]
     V -. failures feed the next batch .-> S
-    D --> F[LoRA fine-tune<br/>Gemma, 4-bit]
+    D --> F[LoRA fine-tune<br/>small LLM, 4-bit]
     F --> K[On-device keyboard<br/>LiteRT-LM]
 ```
 
-- **One fine-tuned model** (Gemma, LoRA, 4-bit) returns the translation and an
-  optional short nuance note in a single structured output.
+- **One fine-tuned model** (LoRA on a 1.7–4B model, 4-bit on the phone) returns the
+  translation and an optional short nuance note in a single structured output. The base
+  is chosen on the held-out test set: QVikhr-3-1.7B first, Gemma 4 E2B/E4B for comparison.
 - **Training data** is synthetic and verified. A multi-model ensemble proposes
   annotated translations, deterministic checks and an automated prefilter
   clear the easy cases, and the contested ones are adjudicated and calibrated
@@ -106,8 +109,9 @@ flowchart LR
 | [`data-pipeline/`](data-pipeline/) | Dataset generation and verification: seeds, model ensemble, checks, prefilter |
 | [`data-pipeline/movie_mining/`](data-pipeline/movie_mining/) | Film audio → clean dialogue clips; OpenSubtitles miner; paired-subtitle aligner |
 | [`data-pipeline/voice_eval/`](data-pipeline/voice_eval/) | Speech-recognition scoring: Indian-accented English (Svarah), your own recordings, Russian vs human subtitles |
+| [`model/`](model/) | LoRA fine-tuning: shared prompt, SFT data prep, training, evaluation, merge for LiteRT-LM |
 
-Fine-tuning and the keyboard land here as those phases start. Detailed design, product and execution docs are kept out of this public repo.
+The keyboard lands here when that phase starts. Detailed design, product and execution docs are kept out of this public repo.
 The code and pipeline tooling here are the public part of the project.
 
 ## Built on
