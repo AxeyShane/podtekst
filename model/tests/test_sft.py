@@ -4,7 +4,7 @@ import unittest
 from podtekst_sft.metrics import category_scores, detection_scores, summarize
 from podtekst_sft.prompt import SYSTEM_PROMPT, build_messages, parse_reply, target_json, user_content
 from prepare_sft import convert
-from train_lora import common_prefix_len, tokenize_example
+from train_lora import common_prefix_len, oversample, parse_oversample, tokenize_example
 
 ROW = {"source_lang": "ru", "source_text": "Ты что, обиделся?", "translation": "What, are you sulking?",
        "has_subtext": True, "category": "emotional_subtext", "nuance_note": "Обиделся is hurt plus a sulk."}
@@ -120,3 +120,15 @@ class EndpointTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class OversampleTest(unittest.TestCase):
+    def test_repeats_only_named_categories(self):
+        rows = [{"row": {"category": "none"}}, {"row": {"category": "formality_shift"}},
+                {"messages": [{"role": "assistant", "content": '{"category": "emotional_subtext"}'}]}]
+        out = oversample(rows, parse_oversample("formality_shift=2, emotional_subtext=3"))
+        self.assertEqual(len(out), 1 + 2 + 3)
+
+    def test_empty_spec_is_noop(self):
+        rows = [{"row": {"category": "none"}}]
+        self.assertIs(oversample(rows, parse_oversample("")), rows)

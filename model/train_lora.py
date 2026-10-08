@@ -62,6 +62,35 @@ def collate(batch: list[dict], pad_id: int) -> dict:
     return {"input_ids": torch.tensor(ids), "labels": torch.tensor(lab), "attention_mask": torch.tensor(att)}
 
 
+def parse_oversample(spec: str) -> dict:
+    """'formality_shift=2,emotional_subtext=3' -> {'formality_shift': 2, 'emotional_subtext': 3}"""
+    out = {}
+    for part in filter(None, (x.strip() for x in spec.split(","))):
+        cat, _, n = part.partition("=")
+        out[cat.strip()] = int(n)
+    return out
+
+
+def row_category(r: dict) -> str:
+    if "row" in r:
+        return r["row"].get("category", "none")
+    try:
+        return json.loads(r["messages"][-1]["content"]).get("category", "none")
+    except (KeyError, ValueError, TypeError):
+        return "none"
+
+
+def oversample(rows: list, factors: dict) -> list:
+    """Repeat rows of rare categories so the model sees them more often (test data is never touched)."""
+    if not factors:
+        return rows
+    out = []
+    for r in rows:
+        out.extend([r] * max(1, factors.get(row_category(r), 1)))
+    print(f"oversampled {len(rows)} -> {len(out)} rows ({factors})")
+    return out
+
+
 def supported_kwargs(cls, kw: dict) -> dict:
     """Drop arguments this transformers version no longer accepts (5.x removed several), with a note."""
     import inspect
@@ -99,6 +128,8 @@ def main():
     ap.add_argument("--max-len", type=int, default=512)
     ap.add_argument("--qlora", action="store_true", help="Load the base in 4-bit (bitsandbytes)")
     ap.add_argument("--seed", type=int, default=7)
+    ap.add_argument("--oversample", default="",
+                    help="Repeat rare categories, e.g. 'formality_shift=2,emotional_subtext=2'")
     args = ap.parse_args()
 
     import torch
@@ -111,6 +142,7 @@ def main():
         tok.pad_token = tok.eos_token
 
     rows = [json.loads(l) for l in open(args.train, encoding="utf-8") if l.strip()]
+    rows = oversample(rows, parse_oversample(args.oversample))
     data, skipped = [], 0
     for r in rows:
         ex = tokenize_example(tok, r["messages"], args.max_len)
