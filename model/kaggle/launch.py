@@ -48,9 +48,11 @@ def metadata(owner: str, slug: str, dataset: str) -> dict:
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--name", default="", help="Run name, e.g. v3 (adapter folder qvikhr-lora-<name>)")
+    ap.add_argument("--name", default="", help="Run name, e.g. v3 (adapter folder lora-<name>)")
     ap.add_argument("--eval-bases", default="",
                     help="Comma-separated HF model ids to score zero-shot instead of training")
+    ap.add_argument("--base", default="Vikhrmodels/QVikhr-3-1.7B-Instruction-noreasoning",
+                    help="HF model id to fine-tune, e.g. RefalMachine/RuadaptQwen3-4B-Instruct")
     ap.add_argument("--epochs", type=float, default=2)
     ap.add_argument("--oversample", default="formality_shift=2,emotional_subtext=2")
     ap.add_argument("--owner", default="akshaykharvi1")
@@ -67,7 +69,7 @@ def main():
     run = {"mode": "eval" if bases else "train", "bases": bases,
            "name": args.name or "zs", "epochs": args.epochs, "oversample": args.oversample,
            "repo": "https://github.com/AxeyShane/podtekst",
-           "base": "Vikhrmodels/QVikhr-3-1.7B-Instruction-noreasoning", "max_formality_rows": 400}
+           "base": args.base, "max_formality_rows": 400}
     folder = Path(tempfile.mkdtemp(prefix="podtekst-kaggle-"))
     (folder / "train_kaggle.py").write_text(build_script(run), encoding="utf-8")
     (folder / "kernel-metadata.json").write_text(

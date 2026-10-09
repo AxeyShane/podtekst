@@ -42,20 +42,21 @@ confident.
 
 ## Progress
 
-*Last updated 2026-10-07.*
+*Last updated 2026-10-10.*
 
 | Phase | Status |
 | --- | --- |
 | Feasibility spike (base Gemma, prompt only) | ✅ Done: nuance detection works out of the box |
 | Training data pipeline (synthetic + verified) | ✅ Phase 1 target reached: **3,815 verified rows** (3,802 unique sentences), split into 3,421 train / 381 test with near-duplicates kept on one side |
 | Real-dialogue mining (film audio + subtitles) | 🔄 In progress: see below |
-| LoRA fine-tune | 🔄 Starting: training and eval scripts in [`model/`](model/); first candidate QVikhr-3-1.7B (a Russian-tuned Qwen3), compared with Gemma 4 E2B/E4B on the test set |
+| LoRA fine-tune | 🔄 In progress: first adapter (QVikhr-3-1.7B, v2b) lifts translation chrF from 39 to 56 and catches nuance with 80% precision / 63% recall; next a 4B base (RuadaptQwen3-4B). See [`model/RESULTS.md`](model/RESULTS.md) |
 | On-device conversion + benchmarking | 📋 Planned |
 | Keyboard (FlorisBoard fork) + nuance UI | 📋 Planned |
 | Voice input (v1.1) | 📋 Planned |
 
-Verified rows by label: none 44%, formality shift (ты/вы) 20%, sarcasm 16%, idiom 15%,
-emotional subtext 5%. Emotional subtext is the hardest category to collect: most emotions
+Verified rows by label (after the 2026-10-08 ты/вы relabel): none 55%, sarcasm 16%, idiom 15%,
+formality shift (unusual ты/вы only) 9%, emotional subtext 5%. Emotional subtext is the hardest
+category to collect: most emotions
 survive translation, so only culture-specific ones count (обида, тоска, душевный,
 умиление). A dedicated emotion-word mining pass over the subtitles raised it from 1% to 5%.
 
@@ -95,7 +96,7 @@ flowchart LR
 
 - **One fine-tuned model** (LoRA on a 1.7–4B model, 4-bit on the phone) returns the
   translation and an optional short nuance note in a single structured output. The base
-  is chosen on the held-out test set: QVikhr-3-1.7B first, Gemma 4 E2B/E4B for comparison.
+  is chosen on the held-out test set: QVikhr-3-1.7B first, now RuadaptQwen3-4B; Gemma 4 E2B later.
 - **Training data** is synthetic and verified. A multi-model ensemble proposes
   annotated translations, deterministic checks and an automated prefilter
   clear the easy cases, and the contested ones are adjudicated and calibrated

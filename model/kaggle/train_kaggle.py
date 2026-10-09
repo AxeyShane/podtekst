@@ -21,7 +21,7 @@ WORK = "/kaggle/working"
 CODE = "/tmp/podtekst"
 MODEL = f"{CODE}/model"
 BASE = "/tmp/base"
-ADAPTER = f"{WORK}/qvikhr-lora-{RUN['name']}"
+ADAPTER = f"{WORK}/lora-{RUN['name']}"
 
 
 def sh(cmd, cwd=None):

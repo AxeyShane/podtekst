@@ -10,6 +10,8 @@ in a fixed JSON shape, whether a plain translation loses nuance.
 The prompt lives in `podtekst_sft/prompt.py` and is shared by training, evaluation and (later)
 the keyboard, so the model sees the same framing everywhere.
 
+Results so far: [`RESULTS.md`](RESULTS.md).
+
 ## Setup (separate venv)
 
 ```powershell
@@ -24,7 +26,7 @@ pip install -r requirements-train.txt
 ```powershell
 cd model
 python prepare_sft.py                              # dataset split -> data/sft_{train,test}.jsonl
-python evaluate.py --base <base> --name baseline   # untuned model on the 342 test rows
+python evaluate.py --base <base> --name baseline   # untuned model on the 381 test rows
 python train_lora.py --base <base> --out out\smoke --max-steps 100   # pipeline smoke run
 python train_lora.py --base <base> --out out\v1    # full run (2 epochs)
 python evaluate.py --base <base> --adapter out\v1 --name v1
@@ -52,6 +54,10 @@ python model/kaggle/launch.py --name v3 --epochs 2 --oversample "formality_shift
 kaggle kernels status akshaykharvi1/podtekst-train
 kaggle kernels output akshaykharvi1/podtekst-train -p D:\podtekst-mm\kaggle-v3
 ```
+
+`--base <hf repo>` trains a different base model (default QVikhr-3-1.7B), e.g.
+`--base RefalMachine/RuadaptQwen3-4B-Instruct`. The adapter is saved as `lora-<name>`.
+`--eval-bases` runs a zero-shot comparison of several bases instead of training.
 
 Needs the Kaggle CLI with a token in `~/.kaggle` and a phone-verified account (GPU + internet).
 
