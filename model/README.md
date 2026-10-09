@@ -40,6 +40,21 @@ per-category F1 and translation chrF, and writes every reply to `out/eval_<name>
 for review. `data/` and `out/` are git-ignored (they hold dataset rows, some derived from
 film subtitles, and large checkpoints).
 
+## On Kaggle, unattended (recommended)
+
+`kaggle/launch.py` pushes a background job from the PC: it clones the repo, copies the SFT files
+from the private `podtekst-sft` dataset (and refuses old pre-relabel data), trains, evaluates and
+deletes the checkpoints. It runs as a saved version, so the browser can stay closed.
+
+```
+git push                                   # the job clones GitHub
+python model/kaggle/launch.py --name v3 --epochs 2 --oversample "formality_shift=2,emotional_subtext=2"
+kaggle kernels status akshaykharvi1/podtekst-train
+kaggle kernels output akshaykharvi1/podtekst-train -p D:\podtekst-mm\kaggle-v3
+```
+
+Needs the Kaggle CLI with a token in `~/.kaggle` and a phone-verified account (GPU + internet).
+
 ## On Kaggle (no local download)
 
 The base model never has to touch your machine: a Kaggle notebook pulls it from Hugging Face at
