@@ -71,7 +71,8 @@ def chat_endpoint(endpoint: str, messages: list[dict], max_tokens: int, post=Non
         import requests
         post = requests.post
     r = post(endpoint.rstrip("/") + "/chat/completions",
-             json={"messages": messages, "temperature": 0, "max_tokens": max_tokens}, timeout=300)
+             json={"messages": messages, "temperature": 0, "max_tokens": max_tokens,
+                   "chat_template_kwargs": {"enable_thinking": False}}, timeout=300)
     r.raise_for_status()
     return r.json()["choices"][0]["message"].get("content") or ""
 
@@ -96,8 +97,10 @@ def generate_local(args, rows):
         from peft import PeftModel
         model = PeftModel.from_pretrained(model, args.adapter)
     model.eval()
+    # enable_thinking=False keeps hybrid-reasoning models (Qwen3, Gemma 4) out of <think> mode;
+    # templates without the switch ignore it.
     prompts = [tok.apply_chat_template(build_messages(r, with_answer=False), add_generation_prompt=True,
-                                       tokenize=False) for r in rows]
+                                       tokenize=False, enable_thinking=False) for r in rows]
     replies = []
     for i in range(0, len(prompts), args.batch):
         enc = tok(prompts[i:i + args.batch], return_tensors="pt", padding=True, add_special_tokens=False).to(model.device)

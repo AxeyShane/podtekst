@@ -41,8 +41,9 @@ def tokenize_example(tok, messages: list[dict], max_len: int) -> dict | None:
     """input_ids + labels with everything before the assistant answer masked to -100.
     Returns None when the example doesn't fit max_len (it is skipped, never truncated --
     a cut-off JSON target would teach the model to stop mid-object)."""
-    prompt_ids = as_ids(tok.apply_chat_template(messages[:-1], add_generation_prompt=True, tokenize=True))
-    full_ids = as_ids(tok.apply_chat_template(messages, tokenize=True))
+    prompt_ids = as_ids(tok.apply_chat_template(messages[:-1], add_generation_prompt=True, tokenize=True,
+                                                  enable_thinking=False))
+    full_ids = as_ids(tok.apply_chat_template(messages, tokenize=True, enable_thinking=False))
     # Usually the prompt is an exact prefix. Some templates (Qwen3's empty <think></think> block)
     # render the generation prompt slightly differently, so mask up to the common prefix: the
     # loss then starts at the first token the model actually has to produce.

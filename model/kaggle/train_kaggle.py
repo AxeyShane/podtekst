@@ -1,4 +1,5 @@
-"""Kaggle background job: train one LoRA adapter, evaluate it, keep only the useful output.
+"""Kaggle background job: train one LoRA adapter and evaluate it, or (mode "eval") score several
+untrained base models zero-shot on the test set. Only the useful output is kept.
 
 Started from the PC with `python model/kaggle/launch.py --name v3 ...`, which fills in RUN below and
 pushes this script as a Kaggle "script" kernel (GPU + internet on, the podtekst-sft dataset attached).
@@ -45,6 +46,10 @@ def main():
     if n > RUN["max_formality_rows"]:
         sys.exit("training data looks like the pre-relabel version; upload the new files to the dataset")
 
+    if RUN.get("mode") == "eval":
+        eval_bases()
+        return
+
     sh(f"python -c \"from huggingface_hub import snapshot_download; "
        f"snapshot_download('{RUN['base']}', local_dir='{BASE}')\"")
     train = f"python train_lora.py --base {BASE} --out {ADAPTER} --epochs {RUN['epochs']}"
@@ -59,6 +64,29 @@ def main():
     for d in glob.glob(f"{ADAPTER}/checkpoint-*"):
         shutil.rmtree(d)
     sh(f"ls -la {WORK}/eval {ADAPTER} && du -sh {WORK}")
+
+
+def short_name(repo_id: str) -> str:
+    return "zs-" + repo_id.split("/")[-1].lower().replace(".", "-")
+
+
+def eval_bases():
+    """Zero-shot: each base model answers the test set with the same prompt, no adapter."""
+    os.makedirs(f"{WORK}/eval", exist_ok=True)
+    for repo_id in RUN["bases"]:
+        local = f"/tmp/zs-model"
+        shutil.rmtree(local, ignore_errors=True)
+        sh(f"python -c \"from huggingface_hub import snapshot_download; "
+           f"snapshot_download('{repo_id}', local_dir='{local}')\"")
+        name = short_name(repo_id)
+        try:
+            sh(f"python evaluate.py --base {local} --name {name}", cwd=MODEL)
+        except subprocess.CalledProcessError as e:  # one model failing must not lose the others
+            print(f"!! {repo_id} failed: {e}", flush=True)
+        for f in glob.glob(f"{MODEL}/out/eval_{name}*"):
+            shutil.copy(f, f"{WORK}/eval/")
+        shutil.rmtree(local, ignore_errors=True)
+    sh(f"ls -la {WORK}/eval")
 
 
 if __name__ == "__main__":

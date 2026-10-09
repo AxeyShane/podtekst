@@ -54,7 +54,7 @@ class MetricsTest(unittest.TestCase):
 
 class FakeTok:
     """Char-level fake chat template: system/user/assistant joined with markers."""
-    def apply_chat_template(self, msgs, add_generation_prompt=False, tokenize=True):
+    def apply_chat_template(self, msgs, add_generation_prompt=False, tokenize=True, **kw):
         s = "".join(f"<{m['role']}>{m['content']}" for m in msgs)
         if add_generation_prompt:
             s += "<assistant>"
@@ -63,7 +63,7 @@ class FakeTok:
 
 class DictTok(FakeTok):
     """transformers 5.x style: apply_chat_template(tokenize=True) returns a dict."""
-    def apply_chat_template(self, msgs, add_generation_prompt=False, tokenize=True):
+    def apply_chat_template(self, msgs, add_generation_prompt=False, tokenize=True, **kw):
         ids = super().apply_chat_template(msgs, add_generation_prompt, tokenize)
         return {"input_ids": ids, "attention_mask": [1] * len(ids)}
 

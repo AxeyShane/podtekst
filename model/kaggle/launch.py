@@ -48,17 +48,24 @@ def metadata(owner: str, slug: str, dataset: str) -> dict:
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--name", required=True, help="Run name, e.g. v3 (adapter folder qvikhr-lora-<name>)")
+    ap.add_argument("--name", default="", help="Run name, e.g. v3 (adapter folder qvikhr-lora-<name>)")
+    ap.add_argument("--eval-bases", default="",
+                    help="Comma-separated HF model ids to score zero-shot instead of training")
     ap.add_argument("--epochs", type=float, default=2)
     ap.add_argument("--oversample", default="formality_shift=2,emotional_subtext=2")
     ap.add_argument("--owner", default="akshaykharvi1")
-    ap.add_argument("--slug", default="podtekst-train")
+    ap.add_argument("--slug", default="", help="Kaggle kernel slug (default podtekst-train / podtekst-eval)")
     ap.add_argument("--dataset", default="podtekst-sft")
     ap.add_argument("--kaggle", default="kaggle", help="Path to the kaggle CLI")
     ap.add_argument("--dry-run", action="store_true", help="Write the folder and print it, don't push")
     args = ap.parse_args()
 
-    run = {"name": args.name, "epochs": args.epochs, "oversample": args.oversample,
+    bases = [b.strip() for b in args.eval_bases.split(",") if b.strip()]
+    if not bases and not args.name:
+        raise SystemExit("pass --name (training) or --eval-bases (zero-shot comparison)")
+    args.slug = args.slug or ("podtekst-eval" if bases else "podtekst-train")
+    run = {"mode": "eval" if bases else "train", "bases": bases,
+           "name": args.name or "zs", "epochs": args.epochs, "oversample": args.oversample,
            "repo": "https://github.com/AxeyShane/podtekst",
            "base": "Vikhrmodels/QVikhr-3-1.7B-Instruction-noreasoning", "max_formality_rows": 400}
     folder = Path(tempfile.mkdtemp(prefix="podtekst-kaggle-"))
