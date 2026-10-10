@@ -23,8 +23,8 @@ HERE = Path(__file__).resolve().parent
 
 def build_script(run: dict) -> str:
     src = (HERE / "train_kaggle.py").read_text(encoding="utf-8")
-    line = f"RUN = {json.dumps(run, ensure_ascii=False)}  # filled in by launch.py"
-    out, n = re.subn(r"^RUN = \{.*?\}  # launch\.py replaces this line$", line, src, flags=re.M | re.S)
+    line = f"RUN = {run!r}  # filled in by launch.py"  # Python literal: True/False, not JSON true/false
+    out, n = re.subn(r"^RUN = \{.*?\}  # launch\.py replaces this line$", lambda m: line, src, flags=re.M | re.S)
     if n != 1:
         raise SystemExit("could not find the RUN line in train_kaggle.py")
     return out
