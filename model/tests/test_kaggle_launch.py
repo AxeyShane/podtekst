@@ -20,6 +20,10 @@ class LaunchTest(unittest.TestCase):
         self.assertEqual(m["kernel_sources"], [])
         self.assertTrue(m["enable_gpu"] and m["enable_internet"] and m["is_private"])
 
+    def test_train_command_uses_batch_settings(self):
+        src = build_script({"name": "x", "epochs": 2, "oversample": "", "batch": 2, "grad_accum": 8})
+        self.assertIn("--batch {RUN.get('batch', 4)} --grad-accum {RUN.get('grad_accum', 4)}", src)
+
 
 if __name__ == "__main__":
     unittest.main()

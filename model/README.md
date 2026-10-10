@@ -58,6 +58,11 @@ kaggle kernels output akshaykharvi1/podtekst-train -p D:\podtekst-mm\kaggle-v3
 `--base <hf repo>` trains a different base model (default QVikhr-3-1.7B), e.g.
 `--base RefalMachine/RuadaptQwen3-4B-Instruct`. The adapter is saved as `lora-<name>`.
 `--eval-bases` runs a zero-shot comparison of several bases instead of training.
+For ~4B bases on a T4 add `--batch 2` (gradient accumulation doubles, so the effective batch stays the
+same); `--qlora` loads the base in 4-bit if even that runs out of memory.
+
+On Windows, set `$env:PYTHONUTF8 = "1"` before `kaggle kernels output`, or saving the log fails with a
+`'charmap' codec` error.
 
 Needs the Kaggle CLI with a token in `~/.kaggle` and a phone-verified account (GPU + internet).
 

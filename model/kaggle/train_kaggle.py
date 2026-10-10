@@ -22,6 +22,8 @@ CODE = "/tmp/podtekst"
 MODEL = f"{CODE}/model"
 BASE = "/tmp/base"
 ADAPTER = f"{WORK}/lora-{RUN['name']}"
+# Fewer out-of-memory failures from fragmentation on the 15 GB T4 (inherited by the subprocesses).
+os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
 
 
 def sh(cmd, cwd=None):
@@ -52,11 +54,15 @@ def main():
 
     sh(f"python -c \"from huggingface_hub import snapshot_download; "
        f"snapshot_download('{RUN['base']}', local_dir='{BASE}')\"")
-    train = f"python train_lora.py --base {BASE} --out {ADAPTER} --epochs {RUN['epochs']}"
+    train = (f"python train_lora.py --base {BASE} --out {ADAPTER} --epochs {RUN['epochs']} "
+             f"--batch {RUN.get('batch', 4)} --grad-accum {RUN.get('grad_accum', 4)}")
+    if RUN.get("qlora"):
+        train += " --qlora"
     if RUN["oversample"]:
         train += f" --oversample '{RUN['oversample']}'"
     sh(train, cwd=MODEL)
-    sh(f"python evaluate.py --base {BASE} --adapter {ADAPTER} --name {RUN['name']}-full", cwd=MODEL)
+    ev = f"python evaluate.py --base {BASE} --adapter {ADAPTER} --name {RUN['name']}-full"
+    sh(ev + (" --qlora" if RUN.get("qlora") else ""), cwd=MODEL)
 
     os.makedirs(f"{WORK}/eval", exist_ok=True)
     for f in glob.glob(f"{MODEL}/out/eval_*"):

@@ -55,6 +55,10 @@ def main():
                     help="HF model id to fine-tune, e.g. RefalMachine/RuadaptQwen3-4B-Instruct")
     ap.add_argument("--epochs", type=float, default=2)
     ap.add_argument("--oversample", default="formality_shift=2,emotional_subtext=2")
+    ap.add_argument("--batch", type=int, default=4,
+                    help="Per-step batch; use 2 for ~4B models on a T4 (grad-accum keeps the effective batch)")
+    ap.add_argument("--grad-accum", type=int, default=0, help="Default: 16 / batch (effective batch 16 per GPU)")
+    ap.add_argument("--qlora", action="store_true", help="Load the base in 4-bit (last resort for memory)")
     ap.add_argument("--owner", default="akshaykharvi1")
     ap.add_argument("--slug", default="", help="Kaggle kernel slug (default podtekst-train / podtekst-eval)")
     ap.add_argument("--dataset", default="podtekst-sft")
@@ -69,7 +73,8 @@ def main():
     run = {"mode": "eval" if bases else "train", "bases": bases,
            "name": args.name or "zs", "epochs": args.epochs, "oversample": args.oversample,
            "repo": "https://github.com/AxeyShane/podtekst",
-           "base": args.base, "max_formality_rows": 400}
+           "base": args.base, "max_formality_rows": 400,
+           "batch": args.batch, "grad_accum": args.grad_accum or max(1, 16 // args.batch), "qlora": args.qlora}
     folder = Path(tempfile.mkdtemp(prefix="podtekst-kaggle-"))
     (folder / "train_kaggle.py").write_text(build_script(run), encoding="utf-8")
     (folder / "kernel-metadata.json").write_text(
