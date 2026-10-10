@@ -182,6 +182,9 @@ def main():
             if p_.requires_grad:
                 p_.data = p_.data.float()
     model.print_trainable_parameters()
+    if torch.cuda.is_available():
+        print(f"GPU memory after loading: {torch.cuda.memory_allocated(0) / 2**30:.1f} GiB "
+              f"of {torch.cuda.get_device_properties(0).total_memory / 2**30:.1f} GiB", flush=True)
 
     steps_per_epoch = math.ceil(len(data) / (args.batch * args.grad_accum))
     total_steps = args.max_steps if args.max_steps > 0 else math.ceil(steps_per_epoch * args.epochs)

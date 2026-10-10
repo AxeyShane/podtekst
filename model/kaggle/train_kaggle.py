@@ -61,8 +61,9 @@ def main():
     if RUN["oversample"]:
         train += f" --oversample '{RUN['oversample']}'"
     sh(train, cwd=MODEL)
-    ev = f"python evaluate.py --base {BASE} --adapter {ADAPTER} --name {RUN['name']}-full"
-    sh(ev + (" --qlora" if RUN.get("qlora") else ""), cwd=MODEL)
+    # Evaluate on the full-precision base even after QLoRA training: that is the model the phone
+    # conversion merges into, and inference alone fits in fp16.
+    sh(f"python evaluate.py --base {BASE} --adapter {ADAPTER} --name {RUN['name']}-full", cwd=MODEL)
 
     os.makedirs(f"{WORK}/eval", exist_ok=True)
     for f in glob.glob(f"{MODEL}/out/eval_*"):
