@@ -8,7 +8,7 @@
 
 Локальная Android-клавиатура, которая переводит с русского на английский (и обратно) и отмечает то, что теряется при дословном переводе: тон, степень формальности, сарказм, идиомы, эмоциональный подтекст. Автоматически, без дополнительных действий со стороны пользователя.
 
-[![Лицензия: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
+[![Лицензия: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE)
 [![GitHub stars](https://img.shields.io/github/stars/AxeyShane/podtekst?style=social)](https://github.com/AxeyShane/podtekst/stargazers)
 
 ⭐ **Если проект вам интересен, поставьте звезду — так его легче найти другим.**
@@ -82,7 +82,7 @@ flowchart LR
 
 ## На чём построено
 
-- [FlorisBoard](https://github.com/florisboard/florisboard) (MIT) — основа Android-клавиатуры
+- [FlorisBoard](https://github.com/florisboard/florisboard) (Apache-2.0) — основа Android-клавиатуры
 - [LiteRT-LM](https://github.com/google-ai-edge/LiteRT-LM) (Apache-2.0) — среда выполнения LLM на устройстве (Kotlin API, отдельная зависимость Gradle)
 - Пайплайн данных: Demucs (MIT) для отделения речи от музыки, Nemotron 3 Diarization для диаризации, GigaAM v3 (MIT) и whisper.cpp (MIT) для распознавания речи, OPUS OpenSubtitles (Lison & Tiedemann, 2016)
 - Для голосового ввода (v1.1) планируются sherpa-onnx (Apache-2.0) с GigaAM v3 для русской речи и встроенный в Android TextToSpeech
@@ -101,4 +101,8 @@ flowchart LR
 
 ## Лицензия
 
-Apache License 2.0. См. [LICENSE](LICENSE).
+GNU Affero General Public License v3.0 или более поздняя версия (AGPL-3.0-or-later). См. [LICENSE](LICENSE).
+
+Коротко: Podtekst можно использовать, изучать, изменять и распространять. Если вы распространяете изменённую версию или даёте людям пользоваться ею по сети, вы обязаны опубликовать свой исходный код под этой же лицензией. Вклад в проект принимается на тех же условиях.
+
+Версии, опубликованные до 10.10.2026, вышли под лицензией Apache 2.0 и для уже полученных копий остаются под ней.

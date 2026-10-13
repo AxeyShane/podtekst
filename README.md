@@ -9,7 +9,7 @@ An on-device Android keyboard that translates **Russian ↔ English** and flags
 what a literal translation would miss: tone, formality, sarcasm, idiom,
 emotional subtext. Automatically, without the user asking.
 
-[![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
+[![License: AGPL v3](https://img.shields.io/badge/license-AGPL%20v3-blue.svg)](LICENSE)
 ![Status: fine-tuning](https://img.shields.io/badge/status-fine--tuning-orange)
 ![Runs fully on-device](https://img.shields.io/badge/runtime-fully%20on--device-2ea44f)
 ![Russian ↔ English](https://img.shields.io/badge/languages-RU%20%E2%86%94%20EN-informational)
@@ -120,7 +120,7 @@ The code and pipeline tooling here are the public part of the project.
 
 ## Built on
 
-- [FlorisBoard](https://github.com/florisboard/florisboard) (MIT): Android keyboard base
+- [FlorisBoard](https://github.com/florisboard/florisboard) (Apache-2.0): Android keyboard base
 - [LiteRT-LM](https://github.com/google-ai-edge/LiteRT-LM) (Apache-2.0): on-device
   LLM inference runtime (Kotlin API, standalone Gradle dependency)
 - Data pipeline: [Demucs](https://github.com/facebookresearch/demucs) (MIT)
@@ -149,4 +149,11 @@ and ideas are welcome too.
 
 ## License
 
-Apache License 2.0. See [`LICENSE`](LICENSE).
+GNU Affero General Public License v3.0 or later (AGPL-3.0-or-later). See [`LICENSE`](LICENSE).
+
+In short: you may use, study, change and share Podtekst. If you distribute a modified version, or let
+people use it over a network, you must publish your source code under the same license. Contributions
+are accepted under the same license.
+
+Versions published before 2026-10-10 were released under Apache 2.0, and those copies stay under
+that license.

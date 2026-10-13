@@ -31,6 +31,21 @@ class LaunchTest(unittest.TestCase):
         src = build_script({"name": "x", "epochs": 2, "oversample": "", "batch": 2, "grad_accum": 8})
         self.assertIn("--batch {RUN.get('batch', 4)} --grad-accum {RUN.get('grad_accum', 4)}", src)
 
+    def test_data_counts_reads_categories_not_substrings(self):
+        import json, tempfile
+        import train_kaggle
+        d = tempfile.mkdtemp()
+        rows = [{"category": "formality_shift", "nuance_note": ""},
+                {"category": "none", "nuance_note": "not formality_shift"}]
+        Path(d, "sft_train.jsonl").write_text("".join(json.dumps({"row": r}) + "\n" for r in rows), encoding="utf-8")
+        Path(d, "sft_test.jsonl").write_text('{"row": {}}\n', encoding="utf-8")
+        self.assertEqual(train_kaggle.data_counts(d), {"train": 2, "test": 1, "formality_shift": 1})
+
+    def test_convert_metadata_is_cpu_with_adapter_dataset(self):
+        m = metadata("me", "podtekst-convert", ["podtekst-lora-v2b"], gpu=False)
+        self.assertEqual(m["dataset_sources"], ["me/podtekst-lora-v2b"])
+        self.assertFalse(m["enable_gpu"])
+
 
 if __name__ == "__main__":
     unittest.main()

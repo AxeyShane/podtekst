@@ -26,7 +26,7 @@ pip install -r requirements-train.txt
 ```powershell
 cd model
 python prepare_sft.py                              # dataset split -> data/sft_{train,test}.jsonl
-python evaluate.py --base <base> --name baseline   # untuned model on the 381 test rows
+python evaluate.py --base <base> --name baseline   # untuned model on the 380 test rows
 python train_lora.py --base <base> --out out\smoke --max-steps 100   # pipeline smoke run
 python train_lora.py --base <base> --out out\v1    # full run (2 epochs)
 python evaluate.py --base <base> --adapter out\v1 --name v1
@@ -94,6 +94,19 @@ fp32). Download `out/` from the notebook's Output panel when it finishes (the ad
 MB). Kaggle gives about 30 GPU hours a week and 12 h per session.
 
 ## To the phone
+
+**Unattended on Kaggle (CPU, no GPU hours):** upload the adapter folder once as a private dataset
+(with a `dataset-metadata.json` whose id is `<owner>/podtekst-lora-<name>`), then:
+
+```
+kaggle datasets create -p D:\podtekst-mm\kaggle-lora-v2b
+python model/kaggle/launch.py --convert podtekst-lora-v2b          # INT8; add --quant dynamic_wi4b32_afp32 for INT4
+kaggle kernels output akshaykharvi1/podtekst-convert -p D:\podtekst-mm\litert-v2b
+```
+
+For a 4B adapter pass its base too, e.g. `--base RefalMachine/RuadaptQwen3-4B-Instruct`.
+
+**By hand:**
 
 `convert_litertlm.py` merges the adapter into the base and exports a `.litertlm` with LiteRT Torch
 (`pip install litert-torch`). It needs Linux, so run it in the same Kaggle notebook after training:

@@ -1,7 +1,7 @@
 # Fine-tuning results
 
 Running log of training runs and what they showed. All numbers are on the same held-out test set
-(381 rows) plus a 24-sentence crude-language probe (`probes/crude_probe.jsonl`), unless noted.
+(380 rows) plus a 24-sentence crude-language probe (`probes/crude_probe.jsonl`), unless noted.
 Training runs on a Kaggle T4 (fp16, LoRA r16 on all linear layers, answer-only loss, 2 epochs).
 
 *Last updated 2026-10-10.*

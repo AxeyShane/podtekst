@@ -30,7 +30,8 @@ def build_script(run: dict) -> str:
     return out
 
 
-def metadata(owner: str, slug: str, dataset: str) -> dict:
+def metadata(owner: str, slug: str, dataset, gpu: bool = True) -> dict:
+    datasets = [dataset] if isinstance(dataset, str) else list(dataset)
     return {
         "id": f"{owner}/{slug}",
         "title": slug,
@@ -38,9 +39,9 @@ def metadata(owner: str, slug: str, dataset: str) -> dict:
         "language": "python",
         "kernel_type": "script",
         "is_private": True,
-        "enable_gpu": True,
+        "enable_gpu": gpu,
         "enable_internet": True,
-        "dataset_sources": [f"{owner}/{dataset}"],
+        "dataset_sources": [f"{owner}/{d}" for d in datasets],
         "competition_sources": [],
         "kernel_sources": [],
     }
@@ -59,6 +60,13 @@ def main():
                     help="Per-step batch; use 2 for ~4B models on a T4 (grad-accum keeps the effective batch)")
     ap.add_argument("--grad-accum", type=int, default=0, help="Default: 16 / batch (effective batch 16 per GPU)")
     ap.add_argument("--qlora", action="store_true", help="Load the base in 4-bit (last resort for memory)")
+    ap.add_argument("--convert", default="",
+                    help="Private Kaggle dataset holding a LoRA adapter (e.g. podtekst-lora-v2b): merge it into "
+                         "--base and export a .litertlm for the phone instead of training (CPU job)")
+    ap.add_argument("--quant", default="dynamic_wi8_afp32",
+                    help="With --convert: dynamic_wi8_afp32 (INT8, safest) or dynamic_wi4b32_afp32 (INT4, smaller)")
+    ap.add_argument("--expect", default="",
+                    help="Fail before training unless the dataset matches, e.g. train=3451,test=380,formality_shift=296")
     ap.add_argument("--owner", default="akshaykharvi1")
     ap.add_argument("--slug", default="", help="Kaggle kernel slug (default podtekst-train / podtekst-eval)")
     ap.add_argument("--dataset", default="podtekst-sft")
@@ -67,18 +75,23 @@ def main():
     args = ap.parse_args()
 
     bases = [b.strip() for b in args.eval_bases.split(",") if b.strip()]
-    if not bases and not args.name:
-        raise SystemExit("pass --name (training) or --eval-bases (zero-shot comparison)")
-    args.slug = args.slug or ("podtekst-eval" if bases else "podtekst-train")
-    run = {"mode": "eval" if bases else "train", "bases": bases,
+    if not bases and not args.name and not args.convert:
+        raise SystemExit("pass --name (training), --eval-bases (zero-shot comparison) or --convert (phone export)")
+    mode = "convert" if args.convert else "eval" if bases else "train"
+    args.slug = args.slug or {"convert": "podtekst-convert", "eval": "podtekst-eval", "train": "podtekst-train"}[mode]
+    if mode == "convert" and not args.name:
+        args.name = args.convert.removeprefix("podtekst-lora-")
+    run = {"mode": mode, "bases": bases, "adapter": args.convert, "quant": args.quant,
            "name": args.name or "zs", "epochs": args.epochs, "oversample": args.oversample,
            "repo": "https://github.com/AxeyShane/podtekst",
            "base": args.base, "max_formality_rows": 400,
-           "batch": args.batch, "grad_accum": args.grad_accum or max(1, 16 // args.batch), "qlora": args.qlora}
+           "batch": args.batch, "grad_accum": args.grad_accum or max(1, 16 // args.batch), "qlora": args.qlora,
+           "expect": {k.strip(): int(v) for k, v in (p.split("=") for p in args.expect.split(",") if p.strip())}}
     folder = Path(tempfile.mkdtemp(prefix="podtekst-kaggle-"))
     (folder / "train_kaggle.py").write_text(build_script(run), encoding="utf-8")
     (folder / "kernel-metadata.json").write_text(
-        json.dumps(metadata(args.owner, args.slug, args.dataset), indent=2), encoding="utf-8")
+        json.dumps(metadata(args.owner, args.slug, [args.convert] if mode == "convert" else [args.dataset],
+                            gpu=mode != "convert"), indent=2), encoding="utf-8")
     print(f"kernel folder: {folder}")
     if args.dry_run:
         return

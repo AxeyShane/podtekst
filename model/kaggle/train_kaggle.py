@@ -34,6 +34,9 @@ def sh(cmd, cwd=None):
 def main():
     print("run:", json.dumps(RUN), flush=True)
     sh(f"rm -rf {CODE} && git clone -q --depth 1 {RUN['repo']} {CODE}")
+    if RUN.get("mode") == "convert":
+        convert()
+        return
     sh("pip install -q -r requirements-train.txt && pip uninstall -y -q torchao", cwd=MODEL)
 
     # Training data comes only from the attached dataset, never from an older run's output.
@@ -42,11 +45,15 @@ def main():
         sys.exit(f"expected sft_train.jsonl and sft_test.jsonl from the podtekst-sft dataset, found {files}")
     os.makedirs(f"{MODEL}/data", exist_ok=True)
     for f in files:
+        print("copying", f, flush=True)
         shutil.copy(f, f"{MODEL}/data/")
-    n = sum('"formality_shift' in l for l in open(f"{MODEL}/data/sft_train.jsonl", encoding="utf-8"))
-    print("formality rows in training data:", n, flush=True)
-    if n > RUN["max_formality_rows"]:
+    counts = data_counts(f"{MODEL}/data")
+    print("data counts:", counts, flush=True)
+    if counts["formality_shift"] > RUN["max_formality_rows"]:
         sys.exit("training data looks like the pre-relabel version; upload the new files to the dataset")
+    wrong = {k: (counts[k], v) for k, v in RUN.get("expect", {}).items() if counts.get(k) != v}
+    if wrong:
+        sys.exit(f"dataset does not match the expected counts (got, expected): {wrong}")
 
     if RUN.get("mode") == "eval":
         eval_bases()
@@ -71,6 +78,37 @@ def main():
     for d in glob.glob(f"{ADAPTER}/checkpoint-*"):
         shutil.rmtree(d)
     sh(f"ls -la {WORK}/eval {ADAPTER} && du -sh {WORK}")
+
+
+def data_counts(folder: str) -> dict:
+    """Row counts of both splits plus formality_shift rows in train (the relabel check)."""
+    train = [json.loads(l)["row"] for l in open(f"{folder}/sft_train.jsonl", encoding="utf-8") if l.strip()]
+    test = sum(1 for l in open(f"{folder}/sft_test.jsonl", encoding="utf-8") if l.strip())
+    return {"train": len(train), "test": test,
+            "formality_shift": sum(r["category"] == "formality_shift" for r in train)}
+
+
+def convert():
+    """CPU job: merge a LoRA adapter (attached as a private dataset) into its base and export a .litertlm."""
+    # litert-torch needs a recent torchao, so Kaggle's torchao is upgraded here rather than removed.
+    sh("pip install -q -r requirements-train.txt && pip install -q litert-torch", cwd=MODEL)
+    configs = glob.glob("/kaggle/input/**/adapter_config.json", recursive=True)
+    if len(configs) != 1:
+        sys.exit(f"expected one adapter in the attached dataset, found {configs}")
+    adapter = os.path.dirname(configs[0])
+    print("adapter:", adapter, flush=True)
+    sh(f"python -c \"from huggingface_hub import snapshot_download; "
+       f"snapshot_download('{RUN['base']}', local_dir='{BASE}')\"")
+    tmp = "/tmp/litert"  # the merged fp32 checkpoint stays out of the saved output
+    sh(f"python convert_litertlm.py --base {BASE} --adapter {adapter} --out {tmp} --quant {RUN['quant']}", cwd=MODEL)
+    files = glob.glob(f"{tmp}/*.litertlm")
+    if not files:
+        sh(f"ls -laR {tmp} | head -50")
+        sys.exit("export produced no .litertlm")
+    tag = "int4" if "wi4" in RUN["quant"] else "int8" if "wi8" in RUN["quant"] else "float"
+    for f in files:
+        shutil.copy(f, f"{WORK}/podtekst-{RUN['name']}-{tag}.litertlm")
+    sh(f"ls -la {WORK} && du -sh {WORK}")
 
 
 def short_name(repo_id: str) -> str:
