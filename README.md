@@ -140,6 +140,17 @@ Translation tools get the words right and the meaning wrong. Podtekst exists
 to close that gap for one language pair, done well, rather than many language
 pairs done shallowly.
 
+## Contributors
+
+Podtekst exists because of the people below.
+
+- **Akshay** ([@AxeyShane](https://github.com/AxeyShane)): design, data pipeline, training and the Android app.
+- **Lyla**: native Russian speaker. Checked 60 everyday phrases for whether people really write them that way and
+  suggested current slang to use instead (for example «загонов», «по красоте», «ору», «рофл», «треш»). Her notes
+  on which expressions already sound dated shape the Russian slang dictionary and the training data.
+
+Credit is opt-in, and anyone listed can ask to change or remove their entry at any time.
+
 ## Support the project
 
 If you'd like to see nuance-aware, fully offline translation exist, please
