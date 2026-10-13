@@ -1,7 +1,12 @@
 NOTICE
 
-This project, Podtekst, incorporates code from the following open source
-projects.
+Podtekst is licensed under the GNU Affero General Public License v3.0 or
+later (AGPL-3.0-or-later); see LICENSE. Versions published before
+2026-10-10 were released under the Apache License 2.0.
+
+This project incorporates code from the following open source projects,
+whose licenses are compatible with the AGPL and continue to apply to their
+own code.
 
 --------------------------------------------------------------------------
 LiteRT-LM
@@ -19,12 +24,13 @@ dependency, per its Apache-2.0 terms.
 FlorisBoard
 --------------------------------------------------------------------------
 Source: https://github.com/florisboard/florisboard
-License: MIT License
+License: Apache License 2.0
 
 This project's Android keyboard (IME) foundation is forked from FlorisBoard.
-The original FlorisBoard LICENSE is included in this repository at
-keyboard/LICENSE-FlorisBoard.md (or equivalent path once the fork is
-imported). Attribution is preserved per the MIT license terms.
+The original FlorisBoard LICENSE and NOTICE are included in this repository
+at keyboard/LICENSE-FlorisBoard (or equivalent path once the fork is
+imported). Attribution and modification notices are preserved per the
+Apache-2.0 terms.
 
 --------------------------------------------------------------------------
 
