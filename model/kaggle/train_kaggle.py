@@ -91,7 +91,9 @@ def data_counts(folder: str) -> dict:
 def convert():
     """CPU job: merge a LoRA adapter (attached as a private dataset) into its base and export a .litertlm."""
     # litert-torch needs a recent torchao, so Kaggle's torchao is upgraded here rather than removed.
-    sh("pip install -q -r requirements-train.txt && pip install -q litert-torch", cwd=MODEL)
+    # Its .litertlm builder ships protobuf 6 generated code; Kaggle's image has protobuf 5.
+    sh("pip install -q -r requirements-train.txt && pip install -q litert-torch "
+       "&& pip install -q -U 'protobuf>=6.31.1'", cwd=MODEL)
     configs = glob.glob("/kaggle/input/**/adapter_config.json", recursive=True)
     if len(configs) != 1:
         sys.exit(f"expected one adapter in the attached dataset, found {configs}")
