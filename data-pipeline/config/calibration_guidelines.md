@@ -141,6 +141,30 @@ Earlier precedents conflicted on these patterns; these are the lines now used.
     kept as an ambiguity eval set: the fine-tuned model should hedge on these
     rather than pick one reading confidently.
 
+## Profanity and slang register
+
+Added 2026-10-13 for batch `register1`. The keyboard is private: a softened, masked or refused
+translation of a crude message is a wrong translation. Sent to Stage A with
+`--rules-section "Profanity and slang register"`.
+
+- Keep the force. Strong stays strong (хуй/пизд/ебать/блядь/сука <-> fuck/shit/motherfucker), medium
+  stays medium (хрен, жопа, сволочь <-> ass, bastard, hell of a), mild stays mild (блин, чёрт <-> damn,
+  crap). No softening, no asterisks or other masking (f***, б***), no polite paraphrase, no refusals.
+  Do not make a mild source harsher either.
+- Keep the function, not the literal words: «хуй знает» -> "fuck knows" / "no fucking idea"; «нахуй» as
+  dismissal -> "fuck it" / "no way"; «Сука» as exasperation -> "Fuck!" / "Damn!" (not "Bitch");
+  «пиздец как холодно» -> "it's fucking freezing"; "I don't give a shit" -> «мне похуй».
+- EN->RU: write what a native speaker would actually type, not a calque; a literal calque is a reject.
+  Current forms over dated ones: загоны (not заморочки), всё по красоте / всё збс (not всё пучком),
+  ору / это ор (not угораю), рофл (not прикол), мне пофиг / побоку / без разницы / пох (not фиолетово),
+  треш (not жесть), красава (not красавчик), на вайбе, запарка.
+- `nuance_note` (rows with has_subtext true; plain rows keep it empty as everywhere else): one short
+  sentence naming the register and force, e.g. "Strong mat idiom for 'no idea'; literal 'dick knows'
+  is meaningless." Never claim an idiom meaning that is not there.
+- `has_subtext` stays false and category `none` when the profanity translates intact. Use `idiom` only
+  for mat idioms whose literal words mislead («хрен его знает», «нахуй» as dismissal, «до пизды»),
+  `sarcasm` / `emotional_subtext` only when that nuance is really there.
+
 ## Pending review
 
 <!-- Guideline Agent proposals land here, newest first. Each entry: the

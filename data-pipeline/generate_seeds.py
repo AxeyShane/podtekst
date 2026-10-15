@@ -148,10 +148,10 @@ def load_existing_seeds(paths):
 
 
 def call_model(category, lang, n, model_slug, api_key, max_tokens=1500,
-               provider=None, api_model=None):
-    brief = CATEGORY_BRIEFS[category]
-    system = SYSTEM_TEMPLATE.format(
-        lang_name=LANG_NAMES[lang], category=category, brief=brief, n=n
+               provider=None, api_model=None, system=None):
+    """`system` replaces the category prompt (generate_register_seeds.py writes its own)."""
+    system = system or SYSTEM_TEMPLATE.format(
+        lang_name=LANG_NAMES[lang], category=category, brief=CATEGORY_BRIEFS[category], n=n
     )
     response = requests.post(
         "https://openrouter.ai/api/v1/chat/completions",
@@ -178,11 +178,12 @@ def call_model(category, lang, n, model_slug, api_key, max_tokens=1500,
     return [l for l in lines if l]
 
 
-def call_with_retry(category, lang, n, model_slug, api_key, provider=None, api_model=None):
+def call_with_retry(category, lang, n, model_slug, api_key, provider=None, api_model=None, system=None):
     last_error = None
     for attempt in range(3):
         try:
-            return call_model(category, lang, n, model_slug, api_key, provider=provider, api_model=api_model)
+            return call_model(category, lang, n, model_slug, api_key, provider=provider, api_model=api_model,
+                              system=system)
         except Exception as e:
             last_error = e
             wait = 5 * (attempt + 1)

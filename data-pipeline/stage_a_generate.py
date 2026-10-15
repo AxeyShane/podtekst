@@ -144,6 +144,21 @@ Rules:
 # of source_text. Empty unless --meta is passed.
 GENDER_HINTS: dict[str, dict] = {}
 
+# Extra rules sent as one more system message on every call (--rules-section). Empty by default.
+EXTRA_RULES: list[str] = []
+GUIDELINES_PATH = "config/calibration_guidelines.md"
+
+
+def guideline_section(heading: str, path: str = GUIDELINES_PATH) -> str:
+    """The text of one '## heading' section of the calibration guidelines, up to the next '## '."""
+    with open(path, encoding="utf-8") as f:
+        text = f.read()
+    start = text.find(f"## {heading}\n")
+    if start == -1:
+        raise SystemExit(f"No '## {heading}' section in {path}")
+    end = text.find("\n## ", start + 3)
+    return text[start:end if end != -1 else None].strip()
+
 
 def load_gender_hints(meta_path: str) -> dict[str, dict]:
     """Read speaker/addressee gender per seed from a seeds .meta.jsonl. Unknown values are ignored."""
@@ -191,6 +206,7 @@ def call_model(sentence: str, model_slug: str, api_key: str, max_tokens: int = 1
             "model": api_model or model_slug,
             "messages": [
                 {"role": "system", "content": SYSTEM_PROMPT},
+                *([{"role": "system", "content": r} for r in EXTRA_RULES]),
                 *([{"role": "system", "content": gender_context(GENDER_HINTS[sentence])}]
                   if sentence in GENDER_HINTS else []),
                 {"role": "user", "content": sentence},
@@ -470,6 +486,9 @@ def main():
                          help="Seeds .meta.jsonl; speaker_gender / addressee_gender ('male'/'female') "
                               "per seed are passed to the models as context. Without it, masculine "
                               "forms are the default.")
+    parser.add_argument("--rules-section", default=None,
+                         help="Heading of a config/calibration_guidelines.md section to send as extra "
+                              "rules, e.g. 'Profanity and slang register'")
     parser.add_argument("--sequential", action="store_true",
                          help="Call the generators one at a time instead of concurrently per seed")
     args = parser.parse_args()
@@ -492,6 +511,9 @@ def main():
             raise SystemExit(f"--models not in the active roster: {sorted(unknown)}")
         generators = [g for g in generators if g["slug"] in wanted]
     seeds = load_seeds(args.seeds)
+    if args.rules_section:
+        EXTRA_RULES.append(guideline_section(args.rules_section))
+        print(f"Extra rules: '{args.rules_section}' ({len(EXTRA_RULES[0])} chars).")
     if args.meta:
         GENDER_HINTS.update(load_gender_hints(args.meta))
         print(f"Gender context for {sum(1 for s in seeds if s in GENDER_HINTS)} of {len(seeds)} seeds.")

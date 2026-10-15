@@ -131,6 +131,8 @@ def main():
     ap.add_argument("--sleep", type=float, default=0.5)
     ap.add_argument("--meta", default=None,
                     help="Seeds .meta.jsonl with speaker_gender / addressee_gender, as in stage_a_generate.py")
+    ap.add_argument("--rules-section", default=None,
+                    help="Guidelines section sent as extra rules, as in stage_a_generate.py")
     ap.add_argument("--skip-covered", default=None,
                     help="Main Stage A output of the batch: skip pairs whose seed already has at least one "
                          "candidate there (those seeds were already reviewed with the models that answered)")
@@ -152,6 +154,8 @@ def main():
         raise SystemExit("Set OPENROUTER_API_KEY in your environment first.")
 
     config = sa.load_config(args.config)
+    if args.rules_section:
+        sa.EXTRA_RULES.append(sa.guideline_section(args.rules_section))
     if args.meta:
         sa.GENDER_HINTS.update(sa.load_gender_hints(args.meta))
     active_slugs = {g["slug"] for g in config["stage_a_generators"]}

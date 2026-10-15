@@ -20,6 +20,8 @@ Checks applied, per row:
     (stage_a_generate.py only checked the en->ru direction; this checks both)
   - dedup: exact duplicate (source_text, _generator_model) pairs within the file
   - empty translation
+  - masking: a swear word censored in the translation (f***, б**ть, f#ck) -- the keyboard is private,
+    so a masked translation is a wrong one
   - echo drift: the model's own echo of the source (_model_echoed_source_text, recorded by
     stage_a_generate.py) is far from the real seed -- it translated a different sentence
     (e.g. "The cat sat on the mat." -> «Кот сидел на коврике.») or only part of the seed.
@@ -110,6 +112,16 @@ def check_translation_present(row):
     return []
 
 
+# A run of * inside or at the end of a word, or # between letters. Leaves *emphasis* and C# alone.
+MASK_RE = re.compile(r"[^\W\d_]\*+[^\W\d_]|[^\W\d_]\*{2,}|\*{2,}[^\W\d_]|[^\W\d_]#+[^\W\d_]")
+
+
+def check_masking(row):
+    if MASK_RE.search(row.get("translation") or ""):
+        return ["translation masks a swear word with * or #"]
+    return []
+
+
 def _norm_echo(text):
     text = re.sub(r"[^\w\s]", " ", text.lower())
     return " ".join(text.split())
@@ -148,6 +160,7 @@ def main():
             problems += check_echo(row)
             problems += check_translation_present(row)
             problems += check_echo_drift(row)
+            problems += check_masking(row)
 
         key = (row.get("source_text"), row.get("_generator_model"))
         if key in seen_pairs:
