@@ -99,8 +99,9 @@ def convert():
     print("adapter:", adapter, flush=True)
     sh(f"python -c \"from huggingface_hub import snapshot_download; "
        f"snapshot_download('{RUN['base']}', local_dir='{BASE}')\"")
-    tmp = "/tmp/litert"  # the merged fp32 checkpoint stays out of the saved output
-    sh(f"python convert_litertlm.py --base {BASE} --adapter {adapter} --out {tmp} --quant {RUN['quant']}", cwd=MODEL)
+    tmp = "/tmp/litert"  # the merged checkpoint stays out of the saved output
+    sh(f"python convert_litertlm.py --base {BASE} --adapter {adapter} --out {tmp} --quant {RUN['quant']} "
+       f"--merge-dtype {RUN.get('merge_dtype', 'float32')}", cwd=MODEL)
     files = glob.glob(f"{tmp}/*.litertlm")
     if not files:
         sh(f"ls -laR {tmp} | head -50")

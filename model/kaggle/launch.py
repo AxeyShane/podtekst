@@ -65,8 +65,10 @@ def main():
                          "--base and export a .litertlm for the phone instead of training (CPU job)")
     ap.add_argument("--quant", default="dynamic_wi8_afp32",
                     help="With --convert: dynamic_wi8_afp32 (INT8, safest) or dynamic_wi4b32_afp32 (INT4, smaller)")
+    ap.add_argument("--merge-dtype", default="float32", choices=["float32", "bfloat16"],
+                    help="With --convert: bfloat16 halves the merge's RAM (float32 needs ~16 GB for a 4B base)")
     ap.add_argument("--expect", default="",
-                    help="Fail before training unless the dataset matches, e.g. train=3451,test=380,formality_shift=296")
+                    help="Fail before training unless the dataset matches, e.g. train=4473,test=380,formality_shift=296")
     ap.add_argument("--owner", default="akshaykharvi1")
     ap.add_argument("--slug", default="", help="Kaggle kernel slug (default podtekst-train / podtekst-eval)")
     ap.add_argument("--dataset", default="podtekst-sft")
@@ -82,6 +84,7 @@ def main():
     if mode == "convert" and not args.name:
         args.name = args.convert.removeprefix("podtekst-lora-")
     run = {"mode": mode, "bases": bases, "adapter": args.convert, "quant": args.quant,
+           "merge_dtype": args.merge_dtype,
            "name": args.name or "zs", "epochs": args.epochs, "oversample": args.oversample,
            "repo": "https://github.com/AxeyShane/podtekst",
            "base": args.base, "max_formality_rows": 400,

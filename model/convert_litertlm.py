@@ -20,16 +20,27 @@ import json
 from pathlib import Path
 
 
-def merge(base: str, adapter: str, out_dir: Path) -> Path:
+MERGE_DTYPES = ("float32", "bfloat16")
+
+
+def tokenizer_source(base: str, adapter: str) -> str:
+    """The adapter folder when it carries tokenizer files, otherwise the base (a QLoRA run can save
+    the adapter weights alone)."""
+    has = any((Path(adapter) / f).is_file() for f in ("tokenizer.json", "tokenizer_config.json"))
+    return adapter if has else base
+
+
+def merge(base: str, adapter: str, out_dir: Path, dtype: str = "float32") -> Path:
     import torch
     from peft import PeftModel
     from transformers import AutoModelForCausalLM, AutoTokenizer
-    model = AutoModelForCausalLM.from_pretrained(base, torch_dtype=torch.float32)
+    model = AutoModelForCausalLM.from_pretrained(base, torch_dtype=getattr(torch, dtype))
     model = PeftModel.from_pretrained(model, adapter).merge_and_unload()
     out_dir.mkdir(parents=True, exist_ok=True)
     model.save_pretrained(out_dir, safe_serialization=True)
-    AutoTokenizer.from_pretrained(adapter).save_pretrained(out_dir)
-    print(f"merged -> {out_dir}")
+    tok = tokenizer_source(base, adapter)
+    AutoTokenizer.from_pretrained(tok).save_pretrained(out_dir)
+    print(f"merged ({dtype}, tokenizer from {tok}) -> {out_dir}")
     return out_dir
 
 
@@ -52,13 +63,16 @@ def main():
     ap.add_argument("--out", required=True, help="Output folder for the .litertlm")
     ap.add_argument("--quant", default="dynamic_wi8_afp32", help="AI Edge Quantizer recipe name or JSON path")
     ap.add_argument("--cache-length", type=int, default=1024)
+    ap.add_argument("--merge-dtype", choices=MERGE_DTYPES, default="float32",
+                    help="Precision of the merge with --adapter. float32 needs ~4 bytes per parameter of RAM "
+                         "(~16 GB for a 4B base); bfloat16 halves that if the merge runs out of memory")
     args = ap.parse_args()
     out = Path(args.out)
 
     if args.adapter:
         if not args.base:
             raise SystemExit("--adapter needs --base")
-        model_dir = merge(args.base, args.adapter, out / "merged")
+        model_dir = merge(args.base, args.adapter, out / "merged", args.merge_dtype)
     else:
         model_dir = Path(args.merged)
     print(f"architecture {check_architecture(model_dir)}; quantization {args.quant or 'none'}; "

@@ -41,6 +41,20 @@ class LaunchTest(unittest.TestCase):
         Path(d, "sft_test.jsonl").write_text('{"row": {}}\n', encoding="utf-8")
         self.assertEqual(train_kaggle.data_counts(d), {"train": 2, "test": 1, "formality_shift": 1})
 
+    def test_tokenizer_comes_from_the_adapter_only_when_it_has_one(self):
+        import tempfile
+        sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+        from convert_litertlm import tokenizer_source
+        bare, full = tempfile.mkdtemp(), tempfile.mkdtemp()
+        Path(bare, "adapter_config.json").write_text("{}", encoding="utf-8")
+        Path(full, "tokenizer.json").write_text("{}", encoding="utf-8")
+        self.assertEqual(tokenizer_source("/tmp/base", bare), "/tmp/base")
+        self.assertEqual(tokenizer_source("/tmp/base", full), full)
+
+    def test_convert_command_passes_the_merge_dtype(self):
+        src = build_script({"mode": "convert", "merge_dtype": "bfloat16"})
+        self.assertIn("--merge-dtype {RUN.get('merge_dtype', 'float32')}", src)
+
     def test_convert_metadata_is_cpu_with_adapter_dataset(self):
         m = metadata("me", "podtekst-convert", ["podtekst-lora-v2b"], gpu=False)
         self.assertEqual(m["dataset_sources"], ["me/podtekst-lora-v2b"])
