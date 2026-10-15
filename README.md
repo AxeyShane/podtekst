@@ -47,7 +47,7 @@ confident.
 | Phase | Status |
 | --- | --- |
 | Feasibility spike (base Gemma, prompt only) | ✅ Done: nuance detection works out of the box |
-| Training data pipeline (synthetic + verified) | ✅ Phase 1 target reached: **3,815 verified rows** (3,802 unique sentences), split into 3,421 train / 381 test with near-duplicates kept on one side |
+| Training data pipeline (synthetic + verified) | ✅ Phase 1 target reached: **4,964 verified rows** (4,951 unique sentences), split into 4,473 train / 380 test, plus a held-out 98-row profanity test; near-duplicates are kept on one side |
 | Real-dialogue mining (film audio + subtitles) | 🔄 In progress: see below |
 | LoRA fine-tune | 🔄 In progress: first adapter (QVikhr-3-1.7B, v2b) lifts translation chrF from 39 to 56 and catches nuance with 80% precision / 63% recall; next a 4B base (RuadaptQwen3-4B). See [`model/RESULTS.md`](model/RESULTS.md) |
 | On-device conversion + benchmarking | 📋 Planned |
