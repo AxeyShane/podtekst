@@ -33,6 +33,9 @@ def main():
     ap.add_argument("--qlora", action="store_true", help="Load the base in 4-bit")
     ap.add_argument("--crude-probe", type=Path, default=HERE / "probes" / "crude_probe.jsonl",
                     help="Held-out crude messages scored only in the crude slice ('' to skip)")
+    ap.add_argument("--profanity-test", type=Path, default=HERE / "probes" / "profanity_test.jsonl",
+                    help="Held-out profanity split, scored with the crude probes in a separate 'profanity' "
+                         "report outside the main metrics ('' to skip)")
     args = ap.parse_args()
     if bool(args.base) == bool(args.endpoint):
         raise SystemExit("Pass exactly one of --base or --endpoint.")
@@ -42,14 +45,16 @@ def main():
         items = items[:args.limit]
     rows = [it["row"] for it in items]
     probe = load_probe(args.crude_probe)
+    prof = load_probe(args.profanity_test)
 
-    todo = rows + probe
+    todo = rows + probe + prof
     if args.endpoint:
         replies = [chat_endpoint(args.endpoint, build_messages(r, with_answer=False), args.max_new_tokens)
                    for r in progress(todo)]
     else:
         replies = generate_local(args, todo)
-    finish(args, rows, replies[:len(rows)], probe, replies[len(rows):])
+    a, b = len(rows), len(rows) + len(probe)
+    finish(args, rows, replies[:a], probe, replies[a:b], prof, replies[b:])
 
 
 def load_probe(path) -> list[dict]:
@@ -113,16 +118,22 @@ def generate_local(args, rows):
     return replies
 
 
-def finish(args, rows, replies, probe=(), probe_replies=()):
-    """Main metrics over the test rows only; the crude slice adds the probe rows."""
-    probe, probe_replies = list(probe), list(probe_replies)
+def finish(args, rows, replies, probe=(), probe_replies=(), prof=(), prof_replies=()):
+    """Main metrics over the test rows only; the crude slice adds the probe rows; the profanity
+    report covers the profanity split plus the probe rows."""
+    probe, probe_replies, prof, prof_replies = list(probe), list(probe_replies), list(prof), list(prof_replies)
     preds = [parse_reply(t) for t in replies]
     probe_preds = [parse_reply(t) for t in probe_replies]
+    prof_preds = [parse_reply(t) for t in prof_replies]
     report = summarize(rows, preds) | {"name": args.name, "base": args.base or args.endpoint, "adapter": args.adapter}
     report["crude"] = crude_report(rows + probe, replies + probe_replies, preds + probe_preds,
                                    always=set(range(len(rows), len(rows) + len(probe))))
     if report["crude"]:
         report["crude"]["probe_rows"] = len(probe)
+    if prof:
+        both = prof + probe
+        report["profanity"] = crude_report(both, prof_replies + probe_replies, prof_preds + probe_preds,
+                                           always=set(range(len(both))))
     out_dir = HERE / "out"
     out_dir.mkdir(exist_ok=True)
     with open(out_dir / f"eval_{args.name}.json", "w", encoding="utf-8") as f:
@@ -132,6 +143,8 @@ def finish(args, rows, replies, probe=(), probe_replies=()):
             f.write(json.dumps({"row": r, "reply": t, "parsed": p}, ensure_ascii=False) + "\n")
         for r, t, p in zip(probe, probe_replies, probe_preds):
             f.write(json.dumps({"row": r, "reply": t, "parsed": p, "crude_probe": True}, ensure_ascii=False) + "\n")
+        for r, t, p in zip(prof, prof_replies, prof_preds):
+            f.write(json.dumps({"row": r, "reply": t, "parsed": p, "profanity_test": True}, ensure_ascii=False) + "\n")
     d, c = report["detection"], report["category"]
     print(f"\n{args.name}: json_valid {report['json_valid_rate']}  chrF {report['chrf']}  "
           f"category acc {c['accuracy']}")
@@ -141,7 +154,13 @@ def finish(args, rows, replies, probe=(), probe_replies=()):
     cr = report["crude"]
     if cr:
         print(f"  crude slice (n={cr['n']}, {cr['probe_rows']} probe): refusals {cr['refusal_rate']}  profanity kept {cr['profanity_kept_rate']}  "
+              f"(same tier {cr['profanity_same_tier_rate']})  "
               f"masked {cr['masked_rate']}  json_valid {cr['json_valid_rate']}")
+    pr = report.get("profanity")
+    if pr:
+        print(f"  profanity split (n={pr['n']}): kept by tier {pr['profanity_kept_rate_by_tier']}  "
+              f"same tier {pr['profanity_same_tier_rate_by_tier']}  "
+              f"masked {pr['masked_rate']}  refusals {pr['refusal_rate']}")
     print(f"-> out/eval_{args.name}.json")
 
 
