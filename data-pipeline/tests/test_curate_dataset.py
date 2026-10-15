@@ -56,6 +56,41 @@ class CurateTest(unittest.TestCase):
         self.assertTrue(4 <= sum(1 for i in test if i < 20) <= 6)
         self.assertTrue(4 <= sum(1 for i in test if i >= 20) <= 6)
 
+    def test_frozen_test_split_new_batches_train_only_held_out_separate(self):
+        same = {}   # text -> the text it shares an embedding with
+
+        def embed(texts, ids={}):   # one axis per distinct text: nothing is near anything else
+            emb = np.zeros((len(texts), 512))
+            for i, t in enumerate(texts):
+                emb[i, ids.setdefault(same.get(t, t), len(ids))] = 1.0
+            return emb
+
+        read = lambda p: [json.loads(l)["source_text"] for l in open(p, encoding="utf-8")]
+        with tempfile.TemporaryDirectory() as d:
+            out, b1 = os.path.join(d, "dataset"), os.path.join(d, "stage_b_batch1.jsonl")
+            write(b1, [row(f"s{i}", "sarcasm" if i < 20 else "none") for i in range(40)])
+            cd.curate([b1], out, embed)
+            test_path = os.path.join(out, "test.jsonl")
+            before = open(test_path, "rb").read()
+            test_texts = read(test_path)
+            self.assertEqual(len(test_texts), 4)
+
+            same["near copy of a test row"] = test_texts[0]
+            native, held = os.path.join(d, "stage_b_native1.jsonl"), os.path.join(d, "stage_b_register1_test.jsonl")
+            write(native, [row(f"n{i}", "idiom") for i in range(30)] + [row("near copy of a test row"),
+                                                                        row(test_texts[1].upper(), "idiom")])
+            write(held, [row(f"h{i}") for i in range(5)])
+            late = os.path.join(d, "stage_b_zz.jsonl")   # repeats a held-out sentence: must not pull it into train
+            write(late, [row("h0"), row("z1")])
+            for _ in range(2):
+                rep = cd.curate([b1, native, held, late], out, embed)
+                self.assertEqual(open(test_path, "rb").read(), before)
+                train = read(os.path.join(out, "train.jsonl"))
+                self.assertEqual(sorted(train), sorted([f"s{i}" for i in range(40) if f"s{i}" not in test_texts]
+                                                       + [f"n{i}" for i in range(30)] + ["z1"]))
+                self.assertEqual(sorted(read(os.path.join(out, "test_register.jsonl"))), [f"h{i}" for i in range(5)])
+                self.assertEqual((rep["test"], rep["dropped_as_near_copies_of_test"]), (4, 1))
+
 
 if __name__ == "__main__":
     unittest.main()
