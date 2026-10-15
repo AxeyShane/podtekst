@@ -102,8 +102,12 @@ def convert():
     sh(f"python -c \"from huggingface_hub import snapshot_download; "
        f"snapshot_download('{RUN['base']}', local_dir='{BASE}')\"")
     tmp = "/tmp/litert"  # the merged checkpoint stays out of the saved output
-    sh(f"python convert_litertlm.py --base {BASE} --adapter {adapter} --out {tmp} --quant {RUN['quant']} "
-       f"--merge-dtype {RUN.get('merge_dtype', 'float32')}", cwd=MODEL)
+    merged = "/tmp/merged"
+    # Merge in its own process so its memory is returned before the export loads the model again in
+    # float32 (a 4B export was killed for running out of the CPU job's 30 GB when both were in one process).
+    sh(f"python -c \"from pathlib import Path; from convert_litertlm import merge; "
+       f"merge('{BASE}', '{adapter}', Path('{merged}'), '{RUN.get('merge_dtype', 'float32')}')\"", cwd=MODEL)
+    sh(f"python convert_litertlm.py --merged {merged} --out {tmp} --quant {RUN['quant']} --lightweight", cwd=MODEL)
     files = glob.glob(f"{tmp}/*.litertlm")
     if not files:
         sh(f"ls -laR {tmp} | head -50")

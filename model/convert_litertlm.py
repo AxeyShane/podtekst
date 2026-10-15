@@ -66,6 +66,9 @@ def main():
     ap.add_argument("--merge-dtype", choices=MERGE_DTYPES, default="float32",
                     help="Precision of the merge with --adapter. float32 needs ~4 bytes per parameter of RAM "
                          "(~16 GB for a 4B base); bfloat16 halves that if the merge runs out of memory")
+    ap.add_argument("--lightweight", action="store_true",
+                    help="litert-torch's experimental lightweight conversion: constants are handled lazily, "
+                         "for models whose export runs out of memory (a 4B model on a 30 GB Kaggle CPU job)")
     args = ap.parse_args()
     out = Path(args.out)
 
@@ -80,7 +83,7 @@ def main():
 
     from litert_torch.generative.export_hf.export import export
     export(model=str(model_dir), output_dir=str(out), quantization_recipe=args.quant,
-           cache_length=args.cache_length)
+           cache_length=args.cache_length, experimental_lightweight_conversion=args.lightweight)
     files = sorted(out.glob("*.litertlm"))
     for f in files:
         print(f"-> {f}  ({f.stat().st_size / 1e9:.2f} GB)")

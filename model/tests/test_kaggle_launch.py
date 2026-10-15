@@ -53,7 +53,9 @@ class LaunchTest(unittest.TestCase):
 
     def test_convert_command_passes_the_merge_dtype(self):
         src = build_script({"mode": "convert", "merge_dtype": "bfloat16"})
-        self.assertIn("--merge-dtype {RUN.get('merge_dtype', 'float32')}", src)
+        self.assertIn("Path('{merged}'), '{RUN.get('merge_dtype', 'float32')}')", src)
+        self.assertIn("--merged {merged}", src)
+        self.assertIn("--lightweight", src)
 
     def test_convert_metadata_is_cpu_with_adapter_dataset(self):
         m = metadata("me", "podtekst-convert", ["podtekst-lora-v2b"], gpu=False)
