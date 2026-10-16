@@ -42,16 +42,16 @@ confident.
 
 ## Progress
 
-*Last updated 2026-10-10.*
+*Last updated 2026-10-16.*
 
 | Phase | Status |
 | --- | --- |
 | Feasibility spike (base Gemma, prompt only) | ✅ Done: nuance detection works out of the box |
 | Training data pipeline (synthetic + verified) | ✅ Phase 1 target reached: **4,964 verified rows** (4,951 unique sentences), split into 4,473 train / 380 test, plus a held-out 98-row profanity test; near-duplicates are kept on one side |
 | Real-dialogue mining (film audio + subtitles) | 🔄 In progress: see below |
-| LoRA fine-tune | 🔄 In progress: first adapter (QVikhr-3-1.7B, v2b) lifts translation chrF from 39 to 56 and catches nuance with 80% precision / 63% recall; next a 4B base (RuadaptQwen3-4B). See [`model/RESULTS.md`](model/RESULTS.md) |
-| On-device conversion + benchmarking | 📋 Planned |
-| Keyboard (FlorisBoard fork) + nuance UI | 📋 Planned |
+| LoRA fine-tune | ✅ Current model: RuadaptQwen3-4B + QLoRA (rua-q3): translation chrF 61, nuance caught with 83% precision / 85% recall, swearing kept in 88% of crude messages. See [`model/RESULTS.md`](model/RESULTS.md) |
+| On-device conversion + benchmarking | ✅ Runs offline on a OnePlus 13 (GPU). The 8-bit model (4.0 GB) matches the full-precision scores; 4-bit (2.3 GB) loses ~12 points of recall. About 4.6 s per message, so speed is the next target |
+| Keyboard (FlorisBoard fork) + nuance UI | 🔄 Started: test app ([`keyboard/`](keyboard/)) with a reusable on-device engine; FlorisBoard integration next |
 | Voice input (v1.1) | 📋 Planned |
 
 Verified rows by label (after the 2026-10-08 ты/вы relabel): none 55%, sarcasm 16%, idiom 15%,
@@ -113,9 +113,10 @@ flowchart LR
 | [`data-pipeline/`](data-pipeline/) | Dataset generation and verification: seeds, model ensemble, checks, prefilter |
 | [`data-pipeline/movie_mining/`](data-pipeline/movie_mining/) | Film audio → clean dialogue clips; OpenSubtitles miner; paired-subtitle aligner |
 | [`data-pipeline/voice_eval/`](data-pipeline/voice_eval/) | Speech-recognition scoring: Indian-accented English (Svarah), your own recordings, Russian vs human subtitles |
-| [`model/`](model/) | LoRA fine-tuning: shared prompt, SFT data prep, training, evaluation, merge for LiteRT-LM |
+| [`model/`](model/) | LoRA fine-tuning: shared prompt, SFT data prep, training, evaluation, export to LiteRT-LM, scoring of on-device runs |
+| [`keyboard/`](keyboard/) | Android: `engine` (LiteRT-LM model runner, prompt, reply parser; reused by the keyboard) and `lab` (test app: swap models, try messages, run test sets on the phone) |
 
-The keyboard lands here when that phase starts. Detailed design, product and execution docs are kept out of this public repo.
+Detailed design, product and execution docs are kept out of this public repo.
 The code and pipeline tooling here are the public part of the project.
 
 ## Built on

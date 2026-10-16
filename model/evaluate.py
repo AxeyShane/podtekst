@@ -118,9 +118,10 @@ def generate_local(args, rows):
     return replies
 
 
-def finish(args, rows, replies, probe=(), probe_replies=(), prof=(), prof_replies=()):
+def finish(args, rows, replies, probe=(), probe_replies=(), prof=(), prof_replies=(), out_dir=None):
     """Main metrics over the test rows only; the crude slice adds the probe rows; the profanity
-    report covers the profanity split plus the probe rows."""
+    report covers the profanity split plus the probe rows. Writes to out_dir (default model/out)
+    and returns the report."""
     probe, probe_replies, prof, prof_replies = list(probe), list(probe_replies), list(prof), list(prof_replies)
     preds = [parse_reply(t) for t in replies]
     probe_preds = [parse_reply(t) for t in probe_replies]
@@ -134,8 +135,8 @@ def finish(args, rows, replies, probe=(), probe_replies=(), prof=(), prof_replie
         both = prof + probe
         report["profanity"] = crude_report(both, prof_replies + probe_replies, prof_preds + probe_preds,
                                            always=set(range(len(both))))
-    out_dir = HERE / "out"
-    out_dir.mkdir(exist_ok=True)
+    out_dir = Path(out_dir) if out_dir else HERE / "out"
+    out_dir.mkdir(parents=True, exist_ok=True)
     with open(out_dir / f"eval_{args.name}.json", "w", encoding="utf-8") as f:
         json.dump(report, f, ensure_ascii=False, indent=2)
     with open(out_dir / f"eval_{args.name}_preds.jsonl", "w", encoding="utf-8", newline="\n") as f:
@@ -161,7 +162,8 @@ def finish(args, rows, replies, probe=(), probe_replies=(), prof=(), prof_replie
         print(f"  profanity split (n={pr['n']}): kept by tier {pr['profanity_kept_rate_by_tier']}  "
               f"same tier {pr['profanity_same_tier_rate_by_tier']}  "
               f"masked {pr['masked_rate']}  refusals {pr['refusal_rate']}")
-    print(f"-> out/eval_{args.name}.json")
+    print(f"-> {out_dir / f'eval_{args.name}.json'}")
+    return report
 
 
 if __name__ == "__main__":
