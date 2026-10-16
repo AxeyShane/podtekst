@@ -48,7 +48,7 @@ confident.
 | --- | --- |
 | Feasibility spike (base Gemma, prompt only) | ✅ Done: nuance detection works out of the box |
 | Training data pipeline (synthetic + verified) | ✅ Phase 1 target reached: **4,964 verified rows** (4,951 unique sentences), split into 4,473 train / 380 test, plus a held-out 98-row profanity test; near-duplicates are kept on one side |
-| Real-dialogue mining (film audio + subtitles) | 🔄 In progress: see below |
+| Real-dialogue mining (film audio + subtitles) | ✅ Done for Phase 1: 1,235 training rows from films, subtitles and interviews. Used only in private models; any published model will be trained without them (see below) |
 | LoRA fine-tune | ✅ Current model: RuadaptQwen3-4B + QLoRA (rua-q3): translation chrF 61, nuance caught with 83% precision / 85% recall, swearing kept in 88% of crude messages. See [`model/RESULTS.md`](model/RESULTS.md) |
 | On-device conversion + benchmarking | ✅ Runs offline on a OnePlus 13 (GPU). The 8-bit model (4.0 GB) matches the full-precision scores; 4-bit (2.3 GB) loses ~12 points of recall. About 4.6 s per message, so speed is the next target |
 | Keyboard (FlorisBoard fork) + nuance UI | 🔄 Started: test app ([`keyboard/`](keyboard/)) with a reusable on-device engine; FlorisBoard integration next |
