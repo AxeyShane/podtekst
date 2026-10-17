@@ -42,14 +42,14 @@ confident.
 
 ## Progress
 
-*Last updated 2026-10-16.*
+*Last updated 2026-10-17.*
 
 | Phase | Status |
 | --- | --- |
 | Feasibility spike (base Gemma, prompt only) | ✅ Done: nuance detection works out of the box |
 | Training data pipeline (synthetic + verified) | ✅ Phase 1 target reached: **4,964 verified rows** (4,951 unique sentences), split into 4,473 train / 380 test, plus a held-out 98-row profanity test; near-duplicates are kept on one side |
 | Real-dialogue mining (film audio + subtitles) | ✅ Done for Phase 1: 1,235 training rows from films, subtitles and interviews. Used only in private models; any published model will be trained without them (see below) |
-| LoRA fine-tune | ✅ Current model: RuadaptQwen3-4B + QLoRA (rua-q3): translation chrF 61, nuance caught with 83% precision / 85% recall, swearing kept in 88% of crude messages. See [`model/RESULTS.md`](model/RESULTS.md) |
+| LoRA fine-tune | ✅ Current model: RuadaptQwen3-4B + QLoRA (rua-q3): translation chrF 61, nuance caught with 83% precision / 85% recall, swearing kept in 88% of crude messages. On a 53-sentence idiom/sarcasm/swearing comparison it scores 83/106 vs DeepL 95, Yandex 91, Google 80 (one LLM judge, indicative). See [`model/RESULTS.md`](model/RESULTS.md) |
 | On-device conversion + benchmarking | ✅ Runs offline on a OnePlus 13 (GPU). The 8-bit model (4.0 GB) matches the full-precision scores; 4-bit (2.3 GB) loses ~12 points of recall. About 4.6 s per message, so speed is the next target |
 | Keyboard (FlorisBoard fork) + nuance UI | 🔄 Started: test app ([`keyboard/`](keyboard/)) with a reusable on-device engine; FlorisBoard integration next |
 | Voice input (v1.1) | 📋 Planned |
@@ -59,6 +59,22 @@ formality shift (unusual ты/вы only) 9%, emotional subtext 5%. Emotional sub
 category to collect: most emotions
 survive translation, so only culture-specific ones count (обида, тоска, душевный,
 умиление). A dedicated emotion-word mining pass over the subtitles raised it from 1% to 5%.
+
+**Compared with DeepL, Yandex and Google** (53 hard sentences: idioms, sarcasm, formality, swearing;
+each translation scored 0-2)
+
+| Group | DeepL | Yandex | Google | Podtekst (rua-q3, on the phone) |
+|---|---:|---:|---:|---:|
+| RU→EN idiom / sarcasm / formality (max 34) | 34 | 31 | 21 | 27 |
+| RU→EN swearing (max 32) | 25 | 24 | 29 | **30** |
+| EN→RU idiom / sarcasm (max 24) | 20 | 21 | 16 | 15 |
+| EN→RU swearing (max 16) | 16 | 15 | 14 | 11 |
+| **Total (max 106)** | **95** | 91 | 80 | 83 |
+
+Podtekst runs fully offline and also explains what was lost; the others don't. It already leads on
+Russian swearing; idioms are the gap, and an idiom batch is being prepared. Scored by one LLM judge,
+so treat it as indicative until the planned blind native-speaker test. Details in
+[`model/RESULTS.md`](model/RESULTS.md).
 
 **Real-dialogue mining so far**
 

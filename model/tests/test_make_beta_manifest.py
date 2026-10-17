@@ -36,5 +36,15 @@ class ManifestTest(unittest.TestCase):
                 mbm.build([a, b], "v")
 
 
+
+class TierOfTest(unittest.TestCase):
+    def test_small_tier(self):
+        from make_beta_manifest import tier_of
+        self.assertEqual(tier_of("podtekst-v4-small.litertlm"), "small")
+        self.assertEqual(tier_of("podtekst-rua-q3-int8.litertlm"), "int8")
+        with self.assertRaises(ValueError):
+            tier_of("podtekst.litertlm")
+
+
 if __name__ == "__main__":
     unittest.main()

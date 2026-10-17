@@ -4,7 +4,7 @@ Running log of training runs and what they showed. All numbers are on the same h
 (380 rows) plus a 24-sentence crude-language probe (`probes/crude_probe.jsonl`), unless noted.
 Training runs on a Kaggle T4 (LoRA r16 on all linear layers, answer-only loss, 2 epochs).
 
-*Last updated 2026-10-16.*
+*Last updated 2026-10-17.*
 
 ## Current best: RuadaptQwen3-4B + QLoRA rua-q3, running on the phone
 
@@ -34,6 +34,32 @@ OnePlus 13 (Snapdragon 8 Elite, GPU backend)** with the test app in [`keyboard/`
   ~1.4 s. Next: reuse the system-prompt prefill across messages, then the NPU.
 - Phone numbers come from `model/score_device.py`, which scores the app's result files with the
   same code as `evaluate.py`.
+
+## Against DeepL, Yandex and Google (53 sentences)
+
+The same 53 sentences as the 2026-10-13 comparison: 29 Russian and 20 English rows from the test set
+and the crude-language probes (idiom, sarcasm, formality, swearing). Each translation is scored 0 (meaning
+lost or wrong), 1 (meaning kept, register or tone off) or 2 (meaning and register kept). rua-q3 is the
+INT8 model running on the phone; the others are the public web translators.
+
+| Group | DeepL | Yandex | Google | rua-q1 | **rua-q3** |
+|---|---:|---:|---:|---:|---:|
+| RU->EN idiom / sarcasm / formality (max 34) | 34 | 31 | 21 | 25 | 27 |
+| RU->EN swearing (max 32) | 25 | 24 | 29 | 18 | **30** |
+| EN->RU idiom / sarcasm (max 24) | 20 | 21 | 16 | 15 | 15 |
+| EN->RU swearing (max 16) | 16 | 15 | 14 | 8 | 11 |
+| **Total (max 106)** | **95** | 91 | 80 | 66 | 83 |
+
+- rua-q3 is now ahead of Google and leads every system on Russian swearing; the swearing batch moved it
+  from 66 to 83.
+- Against DeepL it wins 7 sentences, loses 15 and ties 31. Most losses are idioms translated word for
+  word («родился в рубашке» -> "born in a shirt") and EN->RU idioms ("caught red-handed",
+  "chip on his shoulder") rendered wrongly. The idiom batch in
+  [`data-pipeline/seeds_idioms1_spec.md`](../data-pipeline/seeds_idioms1_spec.md) targets this; its idioms
+  exclude the ones in these 53 sentences.
+- Unlike the web translators, Podtekst also says what was lost (the nuance note); that is not scored here.
+- **Caveats:** one judge (an LLM, not a native speaker), 53 sentences, so a difference of a few points is
+  noise. A blind native-speaker comparison is planned before any claim that one system is better.
 
 ## RuadaptQwen3-4B runs
 

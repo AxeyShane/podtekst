@@ -15,7 +15,8 @@ class BetaLogicTest {
     @Test fun tierByRam() {
         assertEquals(ModelTier.INT8, ModelTier.forTotalRam(11_200_000_000)) // a "12 GB" phone
         assertEquals(ModelTier.INT4, ModelTier.forTotalRam(7_400_000_000))  // an "8 GB" phone
-        assertNull(ModelTier.forTotalRam(5_600_000_000))                    // a "6 GB" phone
+        assertEquals(ModelTier.SMALL, ModelTier.forTotalRam(5_600_000_000)) // a "6 GB" phone
+        assertNull(ModelTier.forTotalRam(3_700_000_000))                    // a "4 GB" phone
         assertEquals(ModelTier.INT8, ModelTier.forTotalRam(ModelTier.INT8_MIN_RAM))
         assertEquals(ModelTier.INT4, ModelTier.fromId("INT4"))
         assertNull(ModelTier.fromId("fp16"))

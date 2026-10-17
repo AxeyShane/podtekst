@@ -12,9 +12,10 @@ from pathlib import Path
 
 
 def tier_of(name: str) -> str:
-    m = re.search(r"-(int4|int8)\.litertlm$", name)
+    """The 1.7B model for 6 GB phones is named *-small.litertlm (it is 4-bit too)."""
+    m = re.search(r"-(small|int4|int8)\.litertlm$", name)
     if not m:
-        raise ValueError(f"cannot tell int4/int8 from the file name: {name}")
+        raise ValueError(f"cannot tell small/int4/int8 from the file name: {name}")
     return m.group(1)
 
 
